@@ -15,6 +15,7 @@ import {
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useSerialPort } from "~/lib/useSerialPort";
+import { useHeartrateMonitor } from "~/lib/useHeartrateMonitor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/components/ui/collapsible";
 import { HexColorPicker } from "react-colorful";
 import { Switch } from "~/components/ui/switch";
@@ -32,6 +33,17 @@ import { cn } from "~/lib/utils";
 const Dashboard = () => {
 	const { isSupported, connect, disconnect, connected, connectionError, latestData, requestsPerSecond, sendText } =
 		useSerialPort();
+
+	const {
+		connect: connectHR,
+		disconnect: disconnectHR,
+		heartrateData,
+		isConnected: connectedHR,
+		isConnecting: connectingHR,
+		error: heartrateError,
+		isSupported: isBluetoothSupported,
+		device: heartrateDevice,
+	} = useHeartrateMonitor();
 
 	const {
 		profiles,
@@ -64,7 +76,7 @@ const Dashboard = () => {
 	const [isProfilesOpen, setIsProfilesOpen] = useState(true);
 
 	// General settings
-	const [showHeartrateTracker, setShowHeartrateTracker] = useState<boolean>(DEFAULT_PROFILE.showHeartrateTracker);
+	const [showHeartrateMonitor, setshowHeartrateMonitor] = useState<boolean>(DEFAULT_PROFILE.showHeartrateMonitor);
 	const [lockThresholds, setLockThresholds] = useState<boolean>(DEFAULT_PROFILE.lockThresholds);
 	const [isGeneralSettingsOpen, setIsGeneralSettingsOpen] = useState<boolean>(true);
 
@@ -96,6 +108,60 @@ const Dashboard = () => {
 	const [isGraphVisualsOpen, setIsGraphVisualsOpen] = useState<boolean>(true);
 	const [isLastResultOpen, setIsLastResultOpen] = useState<boolean>(true);
 	const [isThresholdsOpen, setIsThresholdsOpen] = useState<boolean>(true);
+
+	// Collapsible state for heartrate monitor
+	const [isHeartrateOpen, setIsHeartrateOpen] = useState<boolean>(true);
+
+	// Heartrate settings
+	const [verticalAlignHeartrate, setVerticalAlignHeartrate] = useState<boolean>(DEFAULT_PROFILE.verticalAlignHeartrate);
+	const [fillHeartIcon, setFillHeartIcon] = useState<boolean>(DEFAULT_PROFILE.fillHeartIcon);
+	const [showBpmText, setShowBpmText] = useState<boolean>(DEFAULT_PROFILE.showBpmText);
+	const [animateHeartbeat, setAnimateHeartbeat] = useState<boolean>(DEFAULT_PROFILE.animateHeartbeat);
+
+	// Calculate heart beat animation duration based on BPM
+	const heartBeatDuration = useMemo(() => {
+		if (!heartrateData?.heartrate || !animateHeartbeat) return 0;
+		// Convert BPM to duration in ms
+		return (60 / heartrateData.heartrate) * 1000;
+	}, [heartrateData?.heartrate, animateHeartbeat]);
+
+	const heartBeatStyle = useMemo(() => {
+		if (!heartBeatDuration) return {};
+
+		return {
+			animation: `heartbeat ${heartBeatDuration}ms ease-in-out infinite`,
+		};
+	}, [heartBeatDuration]);
+
+	// This should probably be done in the tailwind config but can refactor that later
+	useEffect(() => {
+		// Only add the style once
+		if (!document.getElementById("heartbeat-animation")) {
+			const style = document.createElement("style");
+			style.id = "heartbeat-animation";
+			style.innerHTML = `
+				@keyframes heartbeat {
+					0%, 100% { transform: scale(1); }
+					15% { transform: scale(1.2); }
+					30% { transform: scale(1); }
+					45% { transform: scale(1.15); }
+					60% { transform: scale(1); }
+				}
+			`;
+			document.head.appendChild(style);
+		}
+	}, []);
+
+	// Handle heart rate connection toggle
+	const handleHeartrateToggle = useCallback(async () => {
+		if (!isBluetoothSupported) return;
+
+		if (connectedHR) {
+			await disconnectHR();
+		} else {
+			await connectHR();
+		}
+	}, [isBluetoothSupported, connectedHR, connectHR, disconnectHR]);
 
 	// Function to send all thresholds to the microcontroller
 	// biome-ignore lint/correctness/useExhaustiveDependencies: do not need to call on every threshold change
@@ -139,8 +205,12 @@ const Dashboard = () => {
 		setShowGraphActivation(profile.showGraphActivation);
 		setGraphActivationColor(profile.graphActivationColor);
 		setTimeWindow(profile.timeWindow);
-		setShowHeartrateTracker(profile.showHeartrateTracker);
+		setshowHeartrateMonitor(profile.showHeartrateMonitor);
 		setLockThresholds(profile.lockThresholds);
+		setVerticalAlignHeartrate(profile.verticalAlignHeartrate);
+		setFillHeartIcon(profile.fillHeartIcon);
+		setShowBpmText(profile.showBpmText);
+		setAnimateHeartbeat(profile.animateHeartbeat);
 
 		// Only update thresholds and sensor labels if they exist in the profile
 		if (profile.thresholds.length > 0) setThresholds(profile.thresholds);
@@ -172,8 +242,12 @@ const Dashboard = () => {
 			showGraphActivation,
 			graphActivationColor,
 			timeWindow,
-			showHeartrateTracker,
+			showHeartrateMonitor,
 			lockThresholds,
+			verticalAlignHeartrate,
+			fillHeartIcon,
+			showBpmText,
+			animateHeartbeat,
 		}),
 		[
 			sensorColors,
@@ -192,8 +266,12 @@ const Dashboard = () => {
 			showGraphActivation,
 			graphActivationColor,
 			timeWindow,
-			showHeartrateTracker,
+			showHeartrateMonitor,
 			lockThresholds,
+			verticalAlignHeartrate,
+			fillHeartIcon,
+			showBpmText,
+			animateHeartbeat,
 		],
 	);
 
@@ -344,6 +422,7 @@ const Dashboard = () => {
 		visuals: [isVisualsOpen, setIsVisualsOpen],
 		lastResult: [isLastResultOpen, setIsLastResultOpen],
 		thresholds: [isThresholdsOpen, setIsThresholdsOpen],
+		heartrate: [isHeartrateOpen, setIsHeartrateOpen],
 	};
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies:
@@ -412,17 +491,27 @@ const Dashboard = () => {
 									</span>
 								</div>
 
-								{/* not yet implemented */}
 								<div className="font-medium">
 									ITG:{" "}
 									<span className={`${connectedITG ? "text-green-500" : "text-destructive"}`}>
 										{connectedITG ? " Connected" : " Disconnected"}
 									</span>
 								</div>
+
+								<div className="font-medium col-span-2">
+									HR Monitor:{" "}
+									<span className={`${connectedHR ? "text-green-500" : "text-destructive"}`}>
+										{connectingHR ? "Attempting connection..." : connectedHR ? " Connected" : " Disconnected"}
+									</span>
+								</div>
 							</div>
 
 							{connectionError && (
 								<div className="text-sm text-destructive">Error connecting to device: {connectionError}</div>
+							)}
+
+							{heartrateError && (
+								<div className="text-sm text-destructive">Error with HR monitor: {heartrateError}</div>
 							)}
 
 							<div className="p-3 border rounded bg-white">
@@ -575,14 +664,6 @@ const Dashboard = () => {
 								<CollapsibleContent className="mt-3">
 									<div className="flex flex-col gap-2">
 										<div className="flex items-center justify-between">
-											<span className="text-xs">Show heartrate tracker</span>
-											<Switch
-												checked={showHeartrateTracker}
-												onCheckedChange={setShowHeartrateTracker}
-												aria-label="Toggle heartrate tracker display"
-											/>
-										</div>
-										<div className="flex items-center justify-between">
 											<span className="text-xs">Lock thresholds</span>
 											<Switch
 												checked={lockThresholds}
@@ -590,6 +671,81 @@ const Dashboard = () => {
 												aria-label="Toggle threshold locking"
 											/>
 										</div>
+									</div>
+								</CollapsibleContent>
+							</Collapsible>
+
+							{/* Heart Rate Monitor Section */}
+							<Collapsible
+								open={isHeartrateOpen}
+								onOpenChange={setIsHeartrateOpen}
+								className="p-3 border rounded bg-white"
+							>
+								<CollapsibleTrigger className="flex items-center justify-between w-full">
+									<span className="text-sm font-semibold">Heartrate Monitor</span>
+									{isHeartrateOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+								</CollapsibleTrigger>
+								<CollapsibleContent className="mt-3">
+									<div className="flex flex-col gap-3">
+										<Button onClick={handleHeartrateToggle} className="w-full" disabled={!isBluetoothSupported}>
+											{connectedHR ? "Disconnect HR monitor" : "Connect HR monitor"}
+										</Button>
+
+										{heartrateDevice && (
+											<div className="text-xs">
+												<div>Connected to:</div>
+												<div className="font-medium">
+													{heartrateDevice.name || "Unknown device"}{" "}
+													{heartrateData?.heartrate ? `(${heartrateData.heartrate} bpm)` : ""}
+												</div>
+											</div>
+										)}
+
+										<div className="flex items-center justify-between">
+											<span className="text-xs">Show heartrate monitor</span>
+											<Switch
+												checked={showHeartrateMonitor}
+												onCheckedChange={setshowHeartrateMonitor}
+												aria-label="Toggle heartrate monitor display"
+											/>
+										</div>
+
+										{showHeartrateMonitor && (
+											<>
+												<div className="flex items-center justify-between">
+													<span className="text-xs">Animate heartbeat</span>
+													<Switch
+														checked={animateHeartbeat}
+														onCheckedChange={setAnimateHeartbeat}
+														aria-label="Toggle heart animation"
+													/>
+												</div>
+												<div className="flex items-center justify-between">
+													<span className="text-xs">Vertical align content</span>
+													<Switch
+														checked={verticalAlignHeartrate}
+														onCheckedChange={setVerticalAlignHeartrate}
+														aria-label="Toggle vertical alignment of heartrate content"
+													/>
+												</div>
+												<div className="flex items-center justify-between">
+													<span className="text-xs">Fill heart icon</span>
+													<Switch
+														checked={fillHeartIcon}
+														onCheckedChange={setFillHeartIcon}
+														aria-label="Toggle filled heart icon"
+													/>
+												</div>
+												<div className="flex items-center justify-between">
+													<span className="text-xs">Show BPM text</span>
+													<Switch
+														checked={showBpmText}
+														onCheckedChange={setShowBpmText}
+														aria-label="Toggle BPM label display"
+													/>
+												</div>
+											</>
+										)}
 									</div>
 								</CollapsibleContent>
 							</Collapsible>
@@ -933,10 +1089,34 @@ const Dashboard = () => {
 									</div>
 
 									{/* Heartrate Tracker */}
-									{showHeartrateTracker && (
+									{showHeartrateMonitor && (
 										<div className="p-4 border rounded-lg bg-white shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
-											<Heart className="size-16 text-muted-foreground" />
-											<p className="text-muted-foreground text-center">Heartrate tracker not connected</p>
+											<div
+												className={`flex ${verticalAlignHeartrate ? "flex-col" : "flex-row"} items-center gap-4 w-full h-full justify-center`}
+											>
+												<Heart
+													className={`${verticalAlignHeartrate ? "size-24" : "size-20"} ${connectedHR ? "text-red-500" : "text-muted-foreground"}`}
+													fill={fillHeartIcon ? (connectedHR ? "currentColor" : "none") : "none"}
+													// Again should probably be done with tailwind config lol
+													style={connectedHR && heartrateData ? heartBeatStyle : {}}
+												/>
+												{connectedHR && heartrateData ? (
+													<div className="text-center">
+														<p className={`font-bold ${showBpmText ? "text-5xl" : "text-7xl"} leading-tight`}>
+															{heartrateData.heartrate}
+														</p>
+														{showBpmText && <p className="text-lg text-muted-foreground mt-1">BPM</p>}
+													</div>
+												) : (
+													<p className="text-muted-foreground text-center text-lg">
+														{isBluetoothSupported
+															? connectedHR
+																? "Waiting for heartrate data..."
+																: "Heartrate monitor not connected"
+															: "WebBluetooth not supported"}
+													</p>
+												)}
+											</div>
 										</div>
 									)}
 								</div>

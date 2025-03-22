@@ -29,10 +29,14 @@ export interface ProfileData {
 	timeWindow: number;
 	thresholds: number[];
 	sensorLabels: string[];
-	showHeartrateTracker: boolean;
+	showHeartrateMonitor: boolean;
 	lockThresholds: boolean;
 	showGraphActivation: boolean;
 	graphActivationColor: string;
+	verticalAlignHeartrate: boolean;
+	fillHeartIcon: boolean;
+	showBpmText: boolean;
+	animateHeartbeat: boolean;
 }
 
 export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"> = {
@@ -60,10 +64,14 @@ export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"
 	timeWindow: 1000,
 	thresholds: [],
 	sensorLabels: [],
-	showHeartrateTracker: false,
+	showHeartrateMonitor: false,
 	lockThresholds: false,
 	showGraphActivation: true,
 	graphActivationColor: "#4dd253",
+	verticalAlignHeartrate: false,
+	fillHeartIcon: true,
+	showBpmText: true,
+	animateHeartbeat: true,
 };
 
 export function useProfileManager() {
@@ -228,7 +236,7 @@ export function useProfileManager() {
 				return null;
 			}
 		},
-		[db],
+		[db]
 	);
 
 	// Delete a profile
@@ -268,7 +276,7 @@ export function useProfileManager() {
 				setError("Failed to delete profile");
 			}
 		},
-		[db, profiles, activeProfileId, saveLastActiveProfileId],
+		[db, profiles, activeProfileId, saveLastActiveProfileId]
 	);
 
 	// Update a profile
@@ -301,7 +309,7 @@ export function useProfileManager() {
 				setError("Failed to update profile");
 			}
 		},
-		[db, activeProfileId],
+		[db, activeProfileId]
 	);
 
 	// Set active profile
@@ -326,7 +334,7 @@ export function useProfileManager() {
 				setError("Failed to set active profile");
 			}
 		},
-		[db, saveLastActiveProfileId],
+		[db, saveLastActiveProfileId]
 	);
 
 	// Update thresholds for active profile
@@ -340,7 +348,7 @@ export function useProfileManager() {
 				console.error("Failed to update thresholds:", err);
 			}
 		},
-		[activeProfileId, db, updateProfile],
+		[activeProfileId, db, updateProfile]
 	);
 
 	// Update sensor labels for active profile
@@ -354,7 +362,7 @@ export function useProfileManager() {
 				console.error("Failed to update sensor labels:", err);
 			}
 		},
-		[activeProfileId, db, updateProfile],
+		[activeProfileId, db, updateProfile]
 	);
 
 	// Reset profile to default values except name, id, timestamps
@@ -396,7 +404,7 @@ export function useProfileManager() {
 				return null;
 			}
 		},
-		[db, activeProfileId],
+		[db, activeProfileId]
 	);
 
 	return {
