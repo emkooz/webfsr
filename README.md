@@ -12,6 +12,10 @@
 -  Automatically save all settings and threshold values to profiles, stored using IndexedDB.
 -  Display heartrate monitor data using WebBluetooth.
 
+## Screenshot
+
+<img src="./screenshot.png" alt="WebFSR screenshot" />
+
 ## Use cases which are not covered
 
 -  WebFSR must be used on the same device that the pad is connected to. If you are trying to adjust thresholds from another device (such as a phone), you must use the standard teejusb FSR web UI setup.
