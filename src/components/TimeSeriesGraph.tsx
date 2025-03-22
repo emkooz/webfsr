@@ -12,6 +12,8 @@ interface TimeSeriesGraphProps {
 	thresholdLineOpacity: number;
 	showLegend: boolean;
 	showBorder: boolean;
+	showActivation: boolean;
+	activationColor: string;
 }
 
 // Component for time-series graph
@@ -27,6 +29,8 @@ const TimeSeriesGraph = memo(
 		thresholdLineOpacity,
 		showLegend,
 		showBorder,
+		showActivation,
+		activationColor,
 	}: TimeSeriesGraphProps) => {
 		const canvasRef = useRef<HTMLCanvasElement>(null);
 		const containerRef = useRef<HTMLDivElement>(null);
@@ -100,7 +104,25 @@ const TimeSeriesGraph = memo(
 
 			ctx.clearRect(0, 0, width, height);
 
-			// Draw background grid
+			const timeSeriesData = timeSeriesDataRef.current;
+			const currentTime = Date.now();
+			const sensorCount = timeSeriesData.length;
+
+			if (sensorCount === 0) {
+				// Draw a message when no data is available
+				ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+				ctx.font = "14px sans-serif";
+				ctx.textAlign = "center";
+				ctx.fillText("Waiting for data...", width / 2, height / 2);
+				return;
+			}
+
+			// Calculate the height for each sensor row
+			const rowHeight = height / sensorCount;
+			const rowPadding = 5;
+			const effectiveRowHeight = rowHeight - 2 * rowPadding;
+
+			// Draw grid
 			if (showGridLines) {
 				ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
 				ctx.lineWidth = 1;
@@ -121,63 +143,124 @@ const TimeSeriesGraph = memo(
 					ctx.fillText(`-${timeLabel}ms`, x, height - 5);
 				}
 
-				// Horizontal grid lines
-				for (let i = 0; i <= 5; i++) {
-					const y = (i / 5) * height;
-					ctx.beginPath();
-					ctx.moveTo(0, y);
-					ctx.lineTo(width, y);
-					ctx.stroke();
+				// Horizontal grid lines (sensor rows)
+				for (let i = 0; i < sensorCount; i++) {
+					const y = i * rowHeight;
 
-					// Draw value labels
-					const value = Math.round(maxSensorVal * (1 - i / 5));
+					// Draw row divider
+					if (i > 0) {
+						ctx.beginPath();
+						ctx.moveTo(0, y);
+						ctx.lineTo(width, y);
+						ctx.stroke();
+					}
+
+					// Draw min/max value labels for this row
 					ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
 					ctx.font = "10px sans-serif";
 					ctx.textAlign = "left";
-					ctx.fillText(value.toString(), 5, y + 10);
+					ctx.fillText("0", 5, y + rowHeight - 5);
+					ctx.fillText(maxSensorVal.toString(), 5, y + rowPadding + 10);
+
+					// Draw sensor label
+					if (i < sensorLabels.length) {
+						ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+						ctx.font = "12px sans-serif";
+						ctx.textAlign = "right";
+						ctx.fillText(sensorLabels[i], width - 10, y + 15);
+					}
 				}
 			}
 
-			const timeSeriesData = timeSeriesDataRef.current;
-			const currentTime = Date.now();
+			// Draw data for each sensor in its own row
+			timeSeriesData.forEach((sensorData, sensorIndex) => {
+				if (!sensorData || sensorData.length === 0) return;
 
-			// Draw threshold lines
-			if (showThresholdLines) {
-				thresholds.forEach((threshold, sensorIndex) => {
-					if (sensorIndex >= sensorColors.length) return;
+				// Calculate the y-position for this sensor's row
+				const rowY = sensorIndex * rowHeight + rowPadding;
 
-					const baseColor = sensorColors[sensorIndex];
+				// Get sensor color
+				const colorIndex = sensorIndex % sensorColors.length;
+				const sensorColor = sensorColors[colorIndex];
+				const threshold = thresholds[sensorIndex] || 0;
+
+				// Draw threshold line for this sensor
+				if (showThresholdLines && sensorIndex < thresholds.length) {
+					const thresholdY = rowY + effectiveRowHeight - (threshold / maxSensorVal) * effectiveRowHeight;
+
 					// Convert hex to rgba with the specified opacity
-					const thresholdColor = `rgba(${Number.parseInt(baseColor.slice(1, 3), 16)}, ${Number.parseInt(baseColor.slice(3, 5), 16)}, ${Number.parseInt(baseColor.slice(5, 7), 16)}, ${thresholdLineOpacity})`;
-
-					const y = height - (threshold / maxSensorVal) * height;
+					const thresholdColor = `rgba(${Number.parseInt(sensorColor.slice(1, 3), 16)}, ${Number.parseInt(sensorColor.slice(3, 5), 16)}, ${Number.parseInt(sensorColor.slice(5, 7), 16)}, ${thresholdLineOpacity})`;
 
 					ctx.beginPath();
-					ctx.moveTo(0, y);
-					ctx.lineTo(width, y);
+					ctx.moveTo(0, thresholdY);
+					ctx.lineTo(width, thresholdY);
 					ctx.strokeStyle = thresholdColor;
 					ctx.lineWidth = 2;
 					ctx.stroke();
-				});
-			}
 
-			// Draw data lines for each sensor
-			if (timeSeriesData.some((sensor) => sensor.length > 0)) {
-				timeSeriesData.forEach((sensorData, sensorIndex) => {
-					if (!sensorData || !sensorData.length) return;
-					if (sensorData.length === 0) return;
+					// Draw threshold value
+					ctx.fillStyle = sensorColor;
+					ctx.font = "10px sans-serif";
+					ctx.textAlign = "right";
+					ctx.fillText(threshold.toString(), width - 10, thresholdY - 3);
+				}
 
-					// Ensure we stay within the color array bounds
-					const colorIndex = sensorIndex % sensorColors.length;
-					ctx.strokeStyle = sensorColors[colorIndex];
+				// Draw sensor data line with activation color for values above threshold
+				if (showActivation && threshold > 0) {
+					let lastX: number | null = null;
+					let lastY: number | null = null;
+					let lastAboveThreshold = false;
+
+					// Draw each segment
+					sensorData.forEach((dataPoint, index) => {
+						const x = width - ((currentTime - dataPoint.timestamp) / timeWindow) * width;
+						const normalizedY = effectiveRowHeight - (dataPoint.value / maxSensorVal) * effectiveRowHeight;
+						const y = rowY + normalizedY;
+						const aboveThreshold = dataPoint.value >= threshold;
+
+						// If this is not the first point and the threshold state changed, we need to end the previous path
+						// and start a new one with a different color
+						if (index > 0 && lastAboveThreshold !== aboveThreshold && lastX !== null && lastY !== null) {
+							// Complete the previous segment
+							ctx.lineTo(x, y);
+							ctx.stroke();
+
+							// Start a new segment
+							ctx.beginPath();
+							ctx.moveTo(x, y);
+							ctx.strokeStyle = aboveThreshold ? activationColor : sensorColor;
+							ctx.lineWidth = 2;
+						} else if (index === 0) {
+							// Start the first segment
+							ctx.beginPath();
+							ctx.strokeStyle = aboveThreshold ? activationColor : sensorColor;
+							ctx.lineWidth = 2;
+							ctx.moveTo(x, y);
+						} else {
+							// Continue the current segment
+							ctx.lineTo(x, y);
+						}
+
+						lastX = x;
+						lastY = y;
+						lastAboveThreshold = aboveThreshold;
+					});
+
+					// Finish the last segment
+					ctx.stroke();
+				} else {
+					// Drawing without activation
+					ctx.strokeStyle = sensorColor;
 					ctx.lineWidth = 2;
 					ctx.beginPath();
 
-					// Map timestamps to x positions
 					sensorData.forEach((dataPoint, index) => {
 						// Calculate x position based on timestamp relative to time window
 						const x = width - ((currentTime - dataPoint.timestamp) / timeWindow) * width;
-						const y = height - (dataPoint.value / maxSensorVal) * height;
+
+						// Calculate y position within this sensor's row
+						const normalizedY = effectiveRowHeight - (dataPoint.value / maxSensorVal) * effectiveRowHeight;
+						const y = rowY + normalizedY;
 
 						if (index === 0) {
 							ctx.moveTo(x, y);
@@ -187,20 +270,14 @@ const TimeSeriesGraph = memo(
 					});
 
 					ctx.stroke();
-				});
-			} else {
-				// Draw a message when no data is available
-				ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-				ctx.font = "14px sans-serif";
-				ctx.textAlign = "center";
-				ctx.fillText("Waiting for data...", width / 2, height / 2);
-			}
+				}
+			});
 
 			// Draw legend
 			if (showLegend) {
-				ctx.font = "12px sans-serif";
 				const legendY = 25;
 				const legendSpacing = Math.min(80, width / 8);
+				ctx.font = "12px sans-serif";
 
 				sensorColors.forEach((color, index) => {
 					if (index >= sensorLabels.length) return;
@@ -216,6 +293,19 @@ const TimeSeriesGraph = memo(
 					ctx.textAlign = "left";
 					ctx.fillText(sensorLabels[index], legendX + 15, legendY);
 				});
+
+				if (showActivation) {
+					const activationLegendX = 10 + sensorColors.length * legendSpacing;
+
+					// Draw activation color box
+					ctx.fillStyle = activationColor;
+					ctx.fillRect(activationLegendX, legendY - 10, 12, 12);
+
+					// Draw activation text
+					ctx.fillStyle = "black";
+					ctx.textAlign = "left";
+					ctx.fillText("Activated", activationLegendX + 15, legendY);
+				}
 			}
 		}, [
 			timeWindow,
@@ -226,6 +316,8 @@ const TimeSeriesGraph = memo(
 			showThresholdLines,
 			thresholdLineOpacity,
 			showLegend,
+			showActivation,
+			activationColor,
 		]);
 
 		const handleResize = useCallback(() => {

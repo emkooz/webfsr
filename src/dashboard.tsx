@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, type SetStateAction, type Dispatch } from "react";
 import {
 	AlertTriangle,
 	ChevronDown,
@@ -9,6 +9,8 @@ import {
 	Plus,
 	Pencil,
 	Trash2,
+	Heart,
+	Undo,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -24,7 +26,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import SensorBar from "~/components/SensorBar";
 import TimeSeriesGraph from "~/components/TimeSeriesGraph";
-import { useProfileManager } from "~/lib/useProfileManager";
+import { useProfileManager, DEFAULT_PROFILE, type ProfileData } from "~/lib/useProfileManager";
 import { cn } from "~/lib/utils";
 
 const Dashboard = () => {
@@ -43,47 +45,49 @@ const Dashboard = () => {
 		setActiveProfileById,
 		updateThresholds,
 		updateSensorLabels,
+		resetProfileToDefaults,
 	} = useProfileManager();
 
 	const [connectedITG, setConnectedITG] = useState<boolean>(false);
-	const [timeWindow, setTimeWindow] = useState<number>(1000);
+	const [timeWindow, setTimeWindow] = useState<number>(DEFAULT_PROFILE.timeWindow);
 	const [thresholds, setThresholds] = useState<number[]>([]);
 	const [sensorLabels, setSensorLabels] = useState<string[]>([]);
-	const [sensorColors, setSensorColors] = useState<string[]>([
-		"#ff0000", // Red
-		"#ffd700", // Yellow
-		"#b6f542", // Green
-		"#00ffff", // Cyan
-		"#0000ff", // Blue
-		"#ff00ff", // Magenta
-	]);
+	const [sensorColors, setSensorColors] = useState<string[]>(DEFAULT_PROFILE.sensorColors);
 
 	// Profile management states
 	const [profileComboboxOpen, setProfileComboboxOpen] = useState(false);
 	const [newProfileDialogOpen, setNewProfileDialogOpen] = useState(false);
 	const [renameProfileDialogOpen, setRenameProfileDialogOpen] = useState(false);
 	const [deleteProfileDialogOpen, setDeleteProfileDialogOpen] = useState(false);
+	const [resetProfileDialogOpen, setResetProfileDialogOpen] = useState(false);
 	const [profileNameInput, setProfileNameInput] = useState("");
 	const [isProfilesOpen, setIsProfilesOpen] = useState(true);
+
+	// General settings
+	const [showHeartrateTracker, setShowHeartrateTracker] = useState<boolean>(DEFAULT_PROFILE.showHeartrateTracker);
+	const [lockThresholds, setLockThresholds] = useState<boolean>(DEFAULT_PROFILE.lockThresholds);
+	const [isGeneralSettingsOpen, setIsGeneralSettingsOpen] = useState<boolean>(true);
 
 	// Track which color picker popovers are open
 	const [openColorPickers, setOpenColorPickers] = useState<boolean[]>([]);
 
 	// Bar visualization options
-	const [showBarThresholdText, setShowBarThresholdText] = useState<boolean>(true);
-	const [showBarValueText, setShowBarValueText] = useState<boolean>(true);
-	const [thresholdColor, setThresholdColor] = useState<string>("#00ff00");
-	const [useThresholdColor, setUseThresholdColor] = useState<boolean>(true);
-	const [useSingleColor, setUseSingleColor] = useState<boolean>(true);
-	const [singleBarColor, setSingleBarColor] = useState<string>("#0000ff");
-	const [useBarGradient, setUseBarGradient] = useState<boolean>(true);
+	const [showBarThresholdText, setShowBarThresholdText] = useState<boolean>(DEFAULT_PROFILE.showBarThresholdText);
+	const [showBarValueText, setShowBarValueText] = useState<boolean>(DEFAULT_PROFILE.showBarValueText);
+	const [thresholdColor, setThresholdColor] = useState<string>(DEFAULT_PROFILE.thresholdColor);
+	const [useThresholdColor, setUseThresholdColor] = useState<boolean>(DEFAULT_PROFILE.useThresholdColor);
+	const [useSingleColor, setUseSingleColor] = useState<boolean>(DEFAULT_PROFILE.useSingleColor);
+	const [singleBarColor, setSingleBarColor] = useState<string>(DEFAULT_PROFILE.singleBarColor);
+	const [useBarGradient, setUseBarGradient] = useState<boolean>(DEFAULT_PROFILE.useBarGradient);
 
 	// Time series graph options
-	const [showGridLines, setShowGridLines] = useState<boolean>(true);
-	const [showThresholdLines, setShowThresholdLines] = useState<boolean>(true);
-	const [thresholdLineOpacity, setThresholdLineOpacity] = useState<number>(0.5);
-	const [showLegend, setShowLegend] = useState<boolean>(true);
-	const [showGraphBorder, setShowGraphBorder] = useState<boolean>(true);
+	const [showGridLines, setShowGridLines] = useState<boolean>(DEFAULT_PROFILE.showGridLines);
+	const [showThresholdLines, setShowThresholdLines] = useState<boolean>(DEFAULT_PROFILE.showThresholdLines);
+	const [thresholdLineOpacity, setThresholdLineOpacity] = useState<number>(DEFAULT_PROFILE.thresholdLineOpacity);
+	const [showLegend, setShowLegend] = useState<boolean>(DEFAULT_PROFILE.showLegend);
+	const [showGraphBorder, setShowGraphBorder] = useState<boolean>(DEFAULT_PROFILE.showGraphBorder);
+	const [showGraphActivation, setShowGraphActivation] = useState<boolean>(DEFAULT_PROFILE.showGraphActivation);
+	const [graphActivationColor, setGraphActivationColor] = useState<string>(DEFAULT_PROFILE.graphActivationColor);
 
 	// Collapsible state for sections
 	const [isVisualsOpen, setIsVisualsOpen] = useState<boolean>(true);
@@ -93,33 +97,65 @@ const Dashboard = () => {
 	const [isLastResultOpen, setIsLastResultOpen] = useState<boolean>(true);
 	const [isThresholdsOpen, setIsThresholdsOpen] = useState<boolean>(true);
 
+	// Function to send all thresholds to the microcontroller
+	// biome-ignore lint/correctness/useExhaustiveDependencies: do not need to call on every threshold change
+	const sendAllThresholds = useCallback(() => {
+		if (!connected || !thresholds.length) return;
+
+		// Send each threshold to the microcontroller
+		thresholds.forEach((value, index) => {
+			const message = `${index} ${value}\n`;
+			sendText(message);
+		});
+	}, [connected, sendText]);
+
+	// Send all thresholds when connection is established
+	useEffect(() => {
+		if (connected) sendAllThresholds();
+	}, [connected, sendAllThresholds]);
+
+	// Send all thresholds when profile changes
+	useEffect(() => {
+		if (activeProfileId && connected) sendAllThresholds();
+	}, [activeProfileId, connected, sendAllThresholds]);
+
+	// Synchronize UI state with profile data
+	const syncUIStateWithProfile = useCallback((profile: ProfileData) => {
+		if (!profile) return;
+
+		setSensorColors(profile.sensorColors);
+		setShowBarThresholdText(profile.showBarThresholdText);
+		setShowBarValueText(profile.showBarValueText);
+		setThresholdColor(profile.thresholdColor);
+		setUseThresholdColor(profile.useThresholdColor);
+		setUseSingleColor(profile.useSingleColor);
+		setSingleBarColor(profile.singleBarColor);
+		setUseBarGradient(profile.useBarGradient);
+		setShowGridLines(profile.showGridLines);
+		setShowThresholdLines(profile.showThresholdLines);
+		setThresholdLineOpacity(profile.thresholdLineOpacity);
+		setShowLegend(profile.showLegend);
+		setShowGraphBorder(profile.showGraphBorder);
+		setShowGraphActivation(profile.showGraphActivation);
+		setGraphActivationColor(profile.graphActivationColor);
+		setTimeWindow(profile.timeWindow);
+		setShowHeartrateTracker(profile.showHeartrateTracker);
+		setLockThresholds(profile.lockThresholds);
+
+		// Only update thresholds and sensor labels if they exist in the profile
+		if (profile.thresholds.length > 0) setThresholds(profile.thresholds);
+		if (profile.sensorLabels.length > 0) setSensorLabels(profile.sensorLabels);
+	}, []);
+
 	// Load active profile data into state
 	// biome-ignore lint/correctness/useExhaustiveDependencies:
 	useEffect(() => {
-		if (activeProfile) {
-			setSensorColors(activeProfile.sensorColors);
-			setShowBarThresholdText(activeProfile.showBarThresholdText);
-			setShowBarValueText(activeProfile.showBarValueText);
-			setThresholdColor(activeProfile.thresholdColor);
-			setUseThresholdColor(activeProfile.useThresholdColor);
-			setUseSingleColor(activeProfile.useSingleColor);
-			setSingleBarColor(activeProfile.singleBarColor);
-			setUseBarGradient(activeProfile.useBarGradient);
-			setShowGridLines(activeProfile.showGridLines);
-			setShowThresholdLines(activeProfile.showThresholdLines);
-			setThresholdLineOpacity(activeProfile.thresholdLineOpacity);
-			setShowLegend(activeProfile.showLegend);
-			setShowGraphBorder(activeProfile.showGraphBorder);
-			setTimeWindow(activeProfile.timeWindow);
-			setThresholds(activeProfile.thresholds.length > 0 ? activeProfile.thresholds : thresholds);
-			setSensorLabels(activeProfile.sensorLabels.length > 0 ? activeProfile.sensorLabels : sensorLabels);
-		}
-	}, [activeProfileId]);
+		if (activeProfile) syncUIStateWithProfile(activeProfile);
+	}, [activeProfileId, syncUIStateWithProfile]);
 
-	const updateProfileVisualSettings = useCallback(() => {
-		if (!activeProfileId) return;
-
-		updateProfile(activeProfileId, {
+	// Get all visual settings from UI state
+	const getVisualSettingsFromUIState = useCallback(
+		() => ({
 			sensorColors,
 			showBarThresholdText,
 			showBarValueText,
@@ -133,58 +169,53 @@ const Dashboard = () => {
 			thresholdLineOpacity,
 			showLegend,
 			showGraphBorder,
+			showGraphActivation,
+			graphActivationColor,
 			timeWindow,
-		});
-	}, [
-		activeProfileId,
-		updateProfile,
-		sensorColors,
-		showBarThresholdText,
-		showBarValueText,
-		thresholdColor,
-		useThresholdColor,
-		useSingleColor,
-		singleBarColor,
-		useBarGradient,
-		showGridLines,
-		showThresholdLines,
-		thresholdLineOpacity,
-		showLegend,
-		showGraphBorder,
-		timeWindow,
-	]);
+			showHeartrateTracker,
+			lockThresholds,
+		}),
+		[
+			sensorColors,
+			showBarThresholdText,
+			showBarValueText,
+			thresholdColor,
+			useThresholdColor,
+			useSingleColor,
+			singleBarColor,
+			useBarGradient,
+			showGridLines,
+			showThresholdLines,
+			thresholdLineOpacity,
+			showLegend,
+			showGraphBorder,
+			showGraphActivation,
+			graphActivationColor,
+			timeWindow,
+			showHeartrateTracker,
+			lockThresholds,
+		],
+	);
+
+	const updateProfileVisualSettings = useCallback(() => {
+		if (!activeProfileId) return;
+		updateProfile(activeProfileId, getVisualSettingsFromUIState());
+	}, [activeProfileId, updateProfile, getVisualSettingsFromUIState]);
 
 	// Update profile when visual settings change
-	// biome-ignore lint/correctness/useExhaustiveDependencies: called on every change of visual settings
 	useEffect(() => {
 		if (activeProfileId) updateProfileVisualSettings();
-	}, [
-		sensorColors,
-		showBarThresholdText,
-		showBarValueText,
-		thresholdColor,
-		useThresholdColor,
-		useSingleColor,
-		singleBarColor,
-		useBarGradient,
-		showGridLines,
-		showThresholdLines,
-		thresholdLineOpacity,
-		showLegend,
-		showGraphBorder,
-		timeWindow,
-		activeProfileId,
-		updateProfileVisualSettings,
-	]);
+	}, [activeProfileId, updateProfileVisualSettings]);
 
 	// Handle creating a new profile
 	const handleCreateProfile = useCallback(async () => {
 		if (!profileNameInput.trim()) return;
 
-		await createProfile(profileNameInput, activeProfileId || undefined);
+		const newProfile = await createProfile(profileNameInput, activeProfileId || undefined);
 		setProfileNameInput("");
 		setNewProfileDialogOpen(false);
-	}, [profileNameInput, createProfile, activeProfileId]);
+		if (newProfile?.id) setActiveProfileById(newProfile.id);
+	}, [profileNameInput, createProfile, activeProfileId, setActiveProfileById]);
 
 	// Handle renaming the active profile
 	const handleRenameProfile = useCallback(async () => {
@@ -203,23 +234,51 @@ const Dashboard = () => {
 		setDeleteProfileDialogOpen(false);
 	}, [activeProfileId, deleteProfile]);
 
-	// Initialize thresholds and labels when we first get sensor data
-	useEffect(() => {
-		if (latestData && thresholds.length !== latestData.values.length)
-			setThresholds(Array(latestData.values.length).fill(512));
+	// Handle resetting the active profile to default values
+	const handleResetProfile = useCallback(async () => {
+		if (!activeProfileId) return;
 
-		if (latestData && sensorLabels.length !== latestData.values.length) {
-			setSensorLabels(
-				Array(latestData.values.length)
-					.fill("")
-					.map((_, i) => `Sensor ${i + 1}`),
-			);
+		const resetProfile = await resetProfileToDefaults(activeProfileId);
+		if (resetProfile) syncUIStateWithProfile(resetProfile);
+
+		setResetProfileDialogOpen(false);
+	}, [activeProfileId, resetProfileToDefaults, syncUIStateWithProfile]);
+
+	// Initialize defaults when we first get sensor data
+	// biome-ignore lint/correctness/useExhaustiveDependencies:
+	useEffect(() => {
+		if (!latestData) return;
+
+		// Initialize missing thresholds with default value
+		if (thresholds.length !== latestData.values.length) {
+			const newThresholds = Array(latestData.values.length).fill(512);
+			setThresholds(newThresholds);
+
+			if (activeProfileId) updateThresholds(newThresholds);
+		}
+
+		// Initialize missing sensor labels
+		if (sensorLabels.length !== latestData.values.length) {
+			const newLabels = Array(latestData.values.length)
+				.fill("")
+				.map((_, i) => `Sensor ${i + 1}`);
+
+			setSensorLabels(newLabels);
+
+			if (activeProfileId) updateSensorLabels(newLabels);
 		}
 
 		// Initialize color picker open state
-		if (latestData && openColorPickers.length !== latestData.values.length)
+		if (openColorPickers.length !== latestData.values.length)
 			setOpenColorPickers(Array(latestData.values.length).fill(false));
-	}, [latestData, thresholds.length, sensorLabels.length, openColorPickers.length]);
+	}, [
+		thresholds.length,
+		sensorLabels.length,
+		openColorPickers.length,
+		activeProfileId,
+		updateThresholds,
+		updateSensorLabels,
+	]);
 
 	const handleThresholdChange = useCallback(
 		(index: number, value: number) => {
@@ -278,6 +337,20 @@ const Dashboard = () => {
 		setTimeWindow(Number.isNaN(value) || value < 0 ? 0 : value);
 	}, []);
 
+	// Collapsible sections management
+	const collapsibleSections: Record<string, [boolean, Dispatch<SetStateAction<boolean>>]> = {
+		profiles: [isProfilesOpen, setIsProfilesOpen],
+		generalSettings: [isGeneralSettingsOpen, setIsGeneralSettingsOpen],
+		visuals: [isVisualsOpen, setIsVisualsOpen],
+		lastResult: [isLastResultOpen, setIsLastResultOpen],
+		thresholds: [isThresholdsOpen, setIsThresholdsOpen],
+	};
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies:
+	const minimizeAllSections = useCallback(() => {
+		for (const [_, setter] of Object.values(collapsibleSections)) setter(false);
+	}, []);
+
 	// Memoize the sensor bars to prevent unnecessary re-renders (will be unnecessary once react compiler works...)
 	const sensorBars = useMemo(() => {
 		if (!latestData) return null;
@@ -297,6 +370,7 @@ const Dashboard = () => {
 				thresholdColor={thresholdColor}
 				useThresholdColor={useThresholdColor}
 				useGradient={useBarGradient}
+				isLocked={lockThresholds}
 			/>
 		));
 	}, [
@@ -312,6 +386,7 @@ const Dashboard = () => {
 		useSingleColor,
 		singleBarColor,
 		useBarGradient,
+		lockThresholds,
 	]);
 
 	return (
@@ -358,17 +433,7 @@ const Dashboard = () => {
 							</div>
 
 							<div className="flex items-center gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									className="flex-1"
-									onClick={() => {
-										setIsLastResultOpen(false);
-										setIsThresholdsOpen(false);
-										setIsVisualsOpen(false);
-										setIsProfilesOpen(false);
-									}}
-								>
+								<Button variant="outline" size="sm" className="flex-1" onClick={minimizeAllSections}>
 									Minimize all toolbars
 								</Button>
 								<TooltipProvider>
@@ -477,6 +542,15 @@ const Dashboard = () => {
 													size="sm"
 													variant="outline"
 													className="flex-1"
+													disabled={!activeProfile}
+													onClick={() => setResetProfileDialogOpen(true)}
+												>
+													<Undo className="size-4" />
+												</Button>
+												<Button
+													size="sm"
+													variant="outline"
+													className="flex-1"
 													disabled={!activeProfile || profiles.length <= 1}
 													onClick={() => setDeleteProfileDialogOpen(true)}
 												>
@@ -485,6 +559,38 @@ const Dashboard = () => {
 											</div>
 										</>
 									)}
+								</CollapsibleContent>
+							</Collapsible>
+
+							{/* General Settings */}
+							<Collapsible
+								open={isGeneralSettingsOpen}
+								onOpenChange={setIsGeneralSettingsOpen}
+								className="p-3 border rounded bg-white"
+							>
+								<CollapsibleTrigger className="flex items-center justify-between w-full">
+									<span className="text-sm font-semibold">General</span>
+									{isGeneralSettingsOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+								</CollapsibleTrigger>
+								<CollapsibleContent className="mt-3">
+									<div className="flex flex-col gap-2">
+										<div className="flex items-center justify-between">
+											<span className="text-xs">Show heartrate tracker</span>
+											<Switch
+												checked={showHeartrateTracker}
+												onCheckedChange={setShowHeartrateTracker}
+												aria-label="Toggle heartrate tracker display"
+											/>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-xs">Lock thresholds</span>
+											<Switch
+												checked={lockThresholds}
+												onCheckedChange={setLockThresholds}
+												aria-label="Toggle threshold locking"
+											/>
+										</div>
+									</div>
 								</CollapsibleContent>
 							</Collapsible>
 
@@ -516,7 +622,7 @@ const Dashboard = () => {
 													<div key={`color-picker-${index}`} className="flex items-center justify-between gap-2">
 														<Input
 															type="text"
-															value={sensorLabels[index] || `Sensor ${index + 1}`}
+															value={sensorLabels[index] ?? ""}
 															onChange={(e) => handleLabelChange(index, e.target.value)}
 															placeholder={`Sensor ${index + 1}`}
 															className="h-7 px-2 py-1"
@@ -541,6 +647,12 @@ const Dashboard = () => {
 																<HexColorPicker
 																	color={color}
 																	onChange={(newColor) => handleColorChange(index, newColor)}
+																/>
+																<Input
+																	type="text"
+																	value={color}
+																	onChange={(e) => handleColorChange(index, e.target.value)}
+																	className="mt-2"
 																/>
 															</PopoverContent>
 														</Popover>
@@ -599,6 +711,12 @@ const Dashboard = () => {
 														</PopoverTrigger>
 														<PopoverContent className="w-auto p-3" side="right">
 															<HexColorPicker color={thresholdColor} onChange={setThresholdColor} />
+															<Input
+																type="text"
+																value={thresholdColor}
+																onChange={(e) => setThresholdColor(e.target.value)}
+																className="mt-2"
+															/>
 														</PopoverContent>
 													</Popover>
 												</div>
@@ -623,6 +741,12 @@ const Dashboard = () => {
 														</PopoverTrigger>
 														<PopoverContent className="w-auto p-3" side="right">
 															<HexColorPicker color={singleBarColor} onChange={setSingleBarColor} />
+															<Input
+																type="text"
+																value={singleBarColor}
+																onChange={(e) => setSingleBarColor(e.target.value)}
+																className="mt-2"
+															/>
 														</PopoverContent>
 													</Popover>
 												</div>
@@ -705,6 +829,36 @@ const Dashboard = () => {
 														aria-label="Toggle graph border display"
 													/>
 												</div>
+												<div className="flex items-center justify-between">
+													<span className="text-xs">Show sensor activation</span>
+													<Switch
+														checked={showGraphActivation}
+														onCheckedChange={setShowGraphActivation}
+														aria-label="Toggle graph activation display"
+													/>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<span className="text-xs">Activation color</span>
+													<Popover>
+														<PopoverTrigger asChild>
+															<button
+																type="button"
+																className="size-7 rounded border cursor-pointer"
+																style={{ backgroundColor: graphActivationColor }}
+																aria-label="Change activation color"
+															/>
+														</PopoverTrigger>
+														<PopoverContent className="w-auto p-3" side="right">
+															<HexColorPicker color={graphActivationColor} onChange={setGraphActivationColor} />
+															<Input
+																type="text"
+																value={graphActivationColor}
+																onChange={(e) => setGraphActivationColor(e.target.value)}
+																className="mt-2"
+															/>
+														</PopoverContent>
+													</Popover>
+												</div>
 											</div>
 										</CollapsibleContent>
 									</Collapsible>
@@ -771,13 +925,24 @@ const Dashboard = () => {
 					<div className="h-full flex flex-col overflow-hidden p-2">
 						{latestData ? (
 							<>
-								{/* Bar Visualizations */}
-								<div className="p-1 border rounded-lg bg-white shadow-sm flex-shrink-0 h-[25rem]">
-									<div className="flex justify-around gap-4 flex-wrap h-full">{sensorBars}</div>
+								{/* Bar Visualizations and Heartrate Section */}
+								<div className="flex gap-2 flex-shrink-0 h-[25rem]">
+									{/* Bar Visualizations */}
+									<div className="px-4 border rounded-lg bg-white shadow-sm flex-grow">
+										<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">{sensorBars}</div>
+									</div>
+
+									{/* Heartrate Tracker */}
+									{showHeartrateTracker && (
+										<div className="p-4 border rounded-lg bg-white shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
+											<Heart className="size-16 text-muted-foreground" />
+											<p className="text-muted-foreground text-center">Heartrate tracker not connected</p>
+										</div>
+									)}
 								</div>
 
 								{/* Time Series Graph */}
-								<div className="p-1 border rounded-lg bg-white shadow-sm mt-1 flex-grow min-h-0">
+								<div className="p-1 border rounded-lg bg-white shadow-sm mt-2 flex-grow min-h-0">
 									<div className="h-full">
 										<TimeSeriesGraph
 											latestData={latestData}
@@ -790,6 +955,8 @@ const Dashboard = () => {
 											thresholdLineOpacity={thresholdLineOpacity}
 											showLegend={showLegend}
 											showBorder={showGraphBorder}
+											showActivation={showGraphActivation}
+											activationColor={graphActivationColor}
 										/>
 									</div>
 								</div>
@@ -879,6 +1046,30 @@ const Dashboard = () => {
 						</Button>
 						<Button variant="destructive" onClick={handleDeleteProfile}>
 							Delete
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Reset Profile Confirmation Dialog */}
+			<Dialog open={resetProfileDialogOpen} onOpenChange={setResetProfileDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Reset Profile</DialogTitle>
+					</DialogHeader>
+					<div className="py-2">
+						<p>
+							Are you sure you want to reset the "{activeProfile?.name}" profile to default values? Your thresholds and
+							sensor labels will be kept.
+						</p>
+						<p className="text-sm text-muted-foreground mt-1">This action cannot be undone.</p>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setResetProfileDialogOpen(false)}>
+							Cancel
+						</Button>
+						<Button variant="destructive" onClick={handleResetProfile}>
+							Reset
 						</Button>
 					</DialogFooter>
 				</DialogContent>

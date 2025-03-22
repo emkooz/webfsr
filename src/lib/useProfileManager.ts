@@ -29,24 +29,28 @@ export interface ProfileData {
 	timeWindow: number;
 	thresholds: number[];
 	sensorLabels: string[];
+	showHeartrateTracker: boolean;
+	lockThresholds: boolean;
+	showGraphActivation: boolean;
+	graphActivationColor: string;
 }
 
-const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"> = {
+export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"> = {
 	name: "Default Profile",
 	sensorColors: [
-		"#ff0000", // Red
-		"#ffd700", // Yellow
-		"#b6f542", // Greenish
-		"#00ffff", // Cyan
-		"#0000ff", // Blue
-		"#ff00ff", // Magenta
+		"#3a7da3", // blue
+		"#d4607c", // pink
+		"#8670d4", // purple
+		"#d49b20", // gold
+		"#459ea0", // teal
+		"#d45478", // coral
 	],
 	showBarThresholdText: true,
 	showBarValueText: true,
-	thresholdColor: "#00ff00",
+	thresholdColor: "#4dd253",
 	useThresholdColor: true,
 	useSingleColor: true,
-	singleBarColor: "#0000ff",
+	singleBarColor: "#3a7da3", // Same as first sensor color
 	useBarGradient: true,
 	showGridLines: true,
 	showThresholdLines: true,
@@ -56,6 +60,10 @@ const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"> = {
 	timeWindow: 1000,
 	thresholds: [],
 	sensorLabels: [],
+	showHeartrateTracker: false,
+	lockThresholds: false,
+	showGraphActivation: true,
+	graphActivationColor: "#4dd253",
 };
 
 export function useProfileManager() {
@@ -349,6 +357,48 @@ export function useProfileManager() {
 		[activeProfileId, db, updateProfile],
 	);
 
+	// Reset profile to default values except name, id, timestamps
+	const resetProfileToDefaults = useCallback(
+		async (id: number) => {
+			if (!db) return null;
+
+			try {
+				const existingProfile = await db.get(PROFILES_STORE, id);
+				if (!existingProfile) {
+					setError("Profile not found");
+					return null;
+				}
+
+				const { name, id: profileId, createdAt } = existingProfile as ProfileData;
+
+				const updatedProfile = {
+					...DEFAULT_PROFILE,
+					thresholds: existingProfile.thresholds, // Keep threshold values
+					sensorLabels: existingProfile.sensorLabels, // Keep sensor labels
+					name, // Keep the profile name
+					id: profileId, // Keep the profile ID
+					createdAt, // Keep the original creation timestamp
+					updatedAt: Date.now(), // Update the updated timestamp
+				};
+
+				await db.put(PROFILES_STORE, updatedProfile);
+
+				// Update profiles state
+				setProfiles((prev) => prev.map((profile) => (profile.id === id ? (updatedProfile as ProfileData) : profile)));
+
+				// If this is the active profile, update the active profile state
+				if (activeProfileId === id) setActiveProfile(updatedProfile as ProfileData);
+
+				return updatedProfile as ProfileData;
+			} catch (err) {
+				console.error("Failed to reset profile:", err);
+				setError("Failed to reset profile");
+				return null;
+			}
+		},
+		[db, activeProfileId],
+	);
+
 	return {
 		profiles,
 		activeProfile,
@@ -361,5 +411,6 @@ export function useProfileManager() {
 		setActiveProfileById,
 		updateThresholds,
 		updateSensorLabels,
+		resetProfileToDefaults,
 	};
 }

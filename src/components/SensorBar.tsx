@@ -1,4 +1,7 @@
-import { useRef, useCallback, useEffect, memo } from "react";
+import { useRef, useCallback, useEffect, memo, useState } from "react";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { Plus, Minus } from "lucide-react";
 
 // Maximum value possible from sensors
 const maxSensorVal = 1023;
@@ -16,6 +19,7 @@ interface SensorBarProps {
 	thresholdColor: string;
 	useThresholdColor: boolean;
 	useGradient: boolean;
+	isLocked?: boolean;
 }
 
 // Component for individual sensor bar
@@ -33,13 +37,21 @@ const SensorBar = memo(
 		thresholdColor,
 		useThresholdColor,
 		useGradient,
+		isLocked = false,
 	}: SensorBarProps) => {
 		const canvasRef = useRef<HTMLCanvasElement>(null);
 		const containerRef = useRef<HTMLDivElement>(null);
 		const isDragging = useRef<boolean>(false);
+		const [inputValue, setInputValue] = useState<string>(threshold.toString());
+		const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
+			width: 0,
+			height: 0,
+		});
 
 		const updateThreshold = useCallback(
 			(y: number) => {
+				if (isLocked) return;
+
 				const canvas = canvasRef.current;
 				if (!canvas) return;
 
@@ -52,15 +64,17 @@ const SensorBar = memo(
 
 				onThresholdChange(index, clampedValue);
 			},
-			[maxValue, index, onThresholdChange],
+			[maxValue, index, onThresholdChange, isLocked],
 		);
 
 		const handleMouseDown = useCallback(
 			(e: React.MouseEvent) => {
+				if (isLocked) return;
+
 				isDragging.current = true;
 				updateThreshold(e.clientY);
 			},
-			[updateThreshold],
+			[updateThreshold, isLocked],
 		);
 
 		const handleMouseMove = useCallback(
@@ -70,6 +84,35 @@ const SensorBar = memo(
 			},
 			[updateThreshold],
 		);
+
+		// Update input value when threshold changes
+		useEffect(() => {
+			setInputValue(threshold.toString());
+		}, [threshold]);
+
+		const validateAndUpdateThreshold = () => {
+			if (isLocked) return;
+
+			const newValue = Number.parseInt(inputValue, 10);
+			if (!Number.isNaN(newValue) && newValue >= 0 && newValue <= maxValue) {
+				onThresholdChange(index, newValue);
+			} else {
+				// Reset input to current threshold if invalid
+				setInputValue(threshold.toString());
+			}
+		};
+
+		const handleIncrement = () => {
+			if (isLocked) return;
+			const newValue = Math.min(threshold + 1, maxValue);
+			onThresholdChange(index, newValue);
+		};
+
+		const handleDecrement = () => {
+			if (isLocked) return;
+			const newValue = Math.max(threshold - 1, 0);
+			onThresholdChange(index, newValue);
+		};
 
 		useEffect(() => {
 			const onMouseMove = (e: MouseEvent) => {
@@ -91,27 +134,55 @@ const SensorBar = memo(
 			};
 		}, [updateThreshold]);
 
+		// Set up the resize observer to detect container size changes
+		useEffect(() => {
+			const canvasContainer = containerRef.current?.querySelector(".canvas-container");
+			if (!canvasContainer) return;
+
+			// Function to handle resize
+			const updateCanvasSize = () => {
+				const rect = canvasContainer.getBoundingClientRect();
+				setDimensions({
+					width: rect.width,
+					height: rect.height,
+				});
+			};
+
+			// Initial size calculation
+			updateCanvasSize();
+
+			// Create resize observer
+			const resizeObserver = new ResizeObserver(updateCanvasSize);
+			resizeObserver.observe(canvasContainer);
+
+			return () => {
+				resizeObserver.disconnect();
+			};
+		}, []);
+
+		// Draw the canvas when dimensions, value, or threshold changes
 		useEffect(() => {
 			const canvas = canvasRef.current;
-			if (!canvas) return;
+			if (!canvas || dimensions.width === 0 || dimensions.height === 0) return;
 
 			const ctx = canvas.getContext("2d");
 			if (!ctx) return;
 
 			// Manage pixel ratio
 			const dpr = window.devicePixelRatio || 1;
-			const rect = canvas.getBoundingClientRect();
+			const width = Math.floor(dimensions.width);
+			const height = Math.floor(dimensions.height);
 
-			canvas.width = rect.width * dpr;
-			canvas.height = rect.height * dpr;
+			// Set canvas dimensions with pixel ratio
+			canvas.width = width * dpr;
+			canvas.height = height * dpr;
+
+			canvas.style.width = `${width}px`;
+			canvas.style.height = `${height}px`;
 
 			ctx.scale(dpr, dpr);
 
-			canvas.style.width = `${rect.width}px`;
-			canvas.style.height = `${rect.height}px`;
-
-			const width = rect.width;
-			const height = rect.height;
+			ctx.imageSmoothingEnabled = false;
 
 			ctx.clearRect(0, 0, width, height);
 
@@ -122,20 +193,21 @@ const SensorBar = memo(
 			const barHeight = (value / maxValue) * height;
 
 			if (useGradient) {
-				// Create gradient
 				const grad = ctx.createLinearGradient(0, 0, 0, height);
 				grad.addColorStop(0, activeColor);
-				grad.addColorStop(1, "rgba(255, 255, 255, 1.0)");
+				grad.addColorStop(
+					1,
+					`rgba(${Number.parseInt(activeColor.slice(1, 3), 16)}, ${Number.parseInt(activeColor.slice(3, 5), 16)}, ${Number.parseInt(activeColor.slice(5, 7), 16)}, 0.3)`,
+				);
 				ctx.fillStyle = grad;
 			} else {
-				// Use solid color
 				ctx.fillStyle = activeColor;
 			}
 
 			ctx.fillRect(0, height - barHeight, width, barHeight);
 
 			// Draw threshold line
-			const thresholdY = height - (threshold / maxValue) * height;
+			const thresholdY = Math.round(height - (threshold / maxValue) * height);
 			ctx.beginPath();
 			ctx.moveTo(0, thresholdY);
 			ctx.lineTo(width, thresholdY);
@@ -151,19 +223,32 @@ const SensorBar = memo(
 			// Draw value text
 			if (showValueText) {
 				ctx.fillStyle = "black";
-				ctx.font = "12px sans-serif";
+				ctx.font = `${12 * (1 / dpr)}px sans-serif`;
 				ctx.textAlign = "center";
-				ctx.fillText(value.toString(), width / 2, 15);
+				ctx.textBaseline = "top";
+
+				// Position text at integer coordinates
+				const valueTextX = Math.floor(width / 2);
+				const valueTextY = 4;
+
+				ctx.fillText(value.toString(), valueTextX, valueTextY);
 			}
 
 			// Draw threshold value text
 			if (showThresholdText) {
 				ctx.fillStyle = "black";
-				ctx.font = "11px sans-serif";
+				ctx.font = `${11 * (1 / dpr)}px sans-serif`;
 				ctx.textAlign = "center";
-				ctx.fillText(`${threshold}`, width / 2, thresholdY - 5);
+				ctx.textBaseline = "bottom";
+
+				// Position text at integer coordinates
+				const thresholdTextX = Math.floor(width / 2);
+				const thresholdTextY = thresholdY - 2;
+
+				ctx.fillText(`${threshold}`, thresholdTextX, thresholdTextY);
 			}
 		}, [
+			dimensions,
 			value,
 			maxValue,
 			threshold,
@@ -176,16 +261,50 @@ const SensorBar = memo(
 		]);
 
 		return (
-			<div className="flex flex-col items-center select-none" ref={containerRef}>
+			<div className="flex flex-col items-center select-none h-full px-4" ref={containerRef}>
 				<div className="text-xs font-medium mb-1 text-center">{label}</div>
-				<div className="relative h-full">
+				<div className="relative flex-1 w-full flex flex-col mb-2 canvas-container">
 					<canvas
 						ref={canvasRef}
-						className="border border-border rounded bg-white w-[60px] h-full cursor-pointer"
+						className={`border border-border rounded bg-white w-full h-full ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
 						aria-label={label}
 						onMouseDown={handleMouseDown}
 						onMouseMove={handleMouseMove}
 					/>
+				</div>
+				<div className="flex items-center gap-0.5 w-full justify-center">
+					<Button
+						variant="link"
+						size="icon"
+						className="size-6 shrink-0 p-0 hover:cursor-pointer"
+						onClick={handleDecrement}
+						disabled={isLocked}
+						aria-label="Decrease threshold"
+					>
+						<Minus className="size-3" />
+					</Button>
+					<Input
+						type="text"
+						value={inputValue}
+						onChange={(e) => setInputValue(e.target.value)}
+						onBlur={() => validateAndUpdateThreshold()}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") validateAndUpdateThreshold();
+						}}
+						disabled={isLocked}
+						className="h-6 text-xs text-center px-0.5 w-12 min-w-12 shadow-none rounded-sm"
+						aria-label={`Threshold value for ${label}`}
+					/>
+					<Button
+						variant="link"
+						size="icon"
+						className="size-6 shrink-0 p-0 hover:cursor-pointer"
+						onClick={handleIncrement}
+						disabled={isLocked}
+						aria-label="Increase threshold"
+					>
+						<Plus className="size-3" />
+					</Button>
 				</div>
 			</div>
 		);
