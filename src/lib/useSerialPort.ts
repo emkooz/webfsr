@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export interface SerialData {
 	rawData: string;
@@ -32,7 +32,7 @@ export const useSerialPort = () => {
 		return () => clearInterval(interval);
 	}, [connected]);
 
-	const connect = useCallback(async () => {
+	const connect = async () => {
 		if (!("serial" in navigator)) {
 			setConnectionError("WebSerial is not supported in this browser");
 			return;
@@ -53,9 +53,9 @@ export const useSerialPort = () => {
 		} catch (error) {
 			setConnectionError(error instanceof Error ? error.message : "Failed to connect to device");
 		}
-	}, [connected]);
+	};
 
-	const disconnect = useCallback(async () => {
+	const disconnect = async () => {
 		if (!connected || !port) return;
 
 		try {
@@ -73,24 +73,21 @@ export const useSerialPort = () => {
 		} catch (error) {
 			setConnectionError(error instanceof Error ? error.message : "Failed to disconnect from device");
 		}
-	}, [connected, port]);
+	};
 
 	// Function to send text directly to the serial port
-	const sendText = useCallback(
-		async (text: string) => {
-			if (!connected || !writerRef.current) return;
+	const sendText = async (text: string) => {
+		if (!connected || !writerRef.current) return;
 
-			try {
-				const encoder = new TextEncoder();
-				const data = encoder.encode(text);
+		try {
+			const encoder = new TextEncoder();
+			const data = encoder.encode(text);
 
-				await writerRef.current.write(data);
-			} catch (error) {
-				console.error("Error sending message:", error);
-			}
-		},
-		[connected],
-	);
+			await writerRef.current.write(data);
+		} catch (error) {
+			console.error("Error sending message:", error);
+		}
+	};
 
 	const startReading = async (serialPort: SerialPort) => {
 		if (!serialPort.readable || !serialPort.writable) return;
@@ -148,6 +145,8 @@ export const useSerialPort = () => {
 												rawData: buffer.trim(),
 												values,
 											});
+
+											// dataStore.setLastData(buffer);
 										}
 
 										buffer = "";

@@ -48,42 +48,33 @@ const SensorBar = memo(
 			height: 0,
 		});
 
-		const updateThreshold = useCallback(
-			(y: number) => {
-				if (isLocked) return;
+		const updateThreshold = (y: number) => {
+			if (isLocked) return;
 
-				const canvas = canvasRef.current;
-				if (!canvas) return;
+			const canvas = canvasRef.current;
+			if (!canvas) return;
 
-				const rect = canvas.getBoundingClientRect();
-				const height = rect.height;
+			const rect = canvas.getBoundingClientRect();
+			const height = rect.height;
 
-				// Calculate threshold value based on click position
-				const newThreshold = Math.round(maxValue * (1 - (y - rect.top) / height));
-				const clampedValue = Math.max(0, Math.min(maxValue, newThreshold));
+			// Calculate threshold value based on click position
+			const newThreshold = Math.round(maxValue * (1 - (y - rect.top) / height));
+			const clampedValue = Math.max(0, Math.min(maxValue, newThreshold));
 
-				onThresholdChange(index, clampedValue);
-			},
-			[maxValue, index, onThresholdChange, isLocked],
-		);
+			onThresholdChange(index, clampedValue);
+		};
 
-		const handleMouseDown = useCallback(
-			(e: React.MouseEvent) => {
-				if (isLocked) return;
+		const handleMouseDown = (e: React.MouseEvent) => {
+			if (isLocked) return;
 
-				isDragging.current = true;
-				updateThreshold(e.clientY);
-			},
-			[updateThreshold, isLocked],
-		);
+			isDragging.current = true;
+			updateThreshold(e.clientY);
+		};
 
-		const handleMouseMove = useCallback(
-			(e: React.MouseEvent) => {
-				if (!isDragging.current) return;
-				updateThreshold(e.clientY);
-			},
-			[updateThreshold],
-		);
+		const handleMouseMove = (e: React.MouseEvent) => {
+			if (!isDragging.current) return;
+			updateThreshold(e.clientY);
+		};
 
 		// Update input value when threshold changes
 		useEffect(() => {
@@ -162,6 +153,7 @@ const SensorBar = memo(
 
 		// Draw the canvas when dimensions, value, or threshold changes
 		useEffect(() => {
+			if (!value) return;
 			const canvas = canvasRef.current;
 			if (!canvas || dimensions.width === 0 || dimensions.height === 0) return;
 
