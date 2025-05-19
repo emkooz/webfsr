@@ -157,7 +157,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 		}),
 }));
 
-// Color settings selectors - each property accessed individually to prevent recreation
+// Color settings selectors
 export const useColorSettings = () => {
 	const sensorColors = useSettingsStore((state) => state.sensorColors);
 	const setSensorColors = useSettingsStore((state) => state.setSensorColors);

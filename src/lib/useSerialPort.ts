@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useDataStore } from "~/store/dataStore";
 
 export interface SerialData {
 	rawData: string;
@@ -11,6 +12,8 @@ export const useSerialPort = () => {
 	const [connectionError, setConnectionError] = useState<string>("");
 	const [latestData, setLatestData] = useState<SerialData | null>(null);
 	const [requestsPerSecond, setRequestsPerSecond] = useState<number>(0);
+
+	const setNumSensors = useDataStore((state) => state.setNumSensors);
 
 	const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
 	const writerRef = useRef<WritableStreamDefaultWriter | null>(null);
@@ -132,7 +135,6 @@ export const useSerialPort = () => {
 									if (buffer.endsWith("\n")) {
 										// for now we ignore the returns of the new threshold value
 										// later on we should update the thresholds based on the real value
-
 										if (buffer.startsWith("v")) {
 											const values = buffer
 												.trim()
@@ -141,12 +143,13 @@ export const useSerialPort = () => {
 												.slice(1)
 												.map((v) => Number.parseInt(v, 10));
 
+											const numSensors = useDataStore.getState().numSensors;
+											if (numSensors === 0 && values.length > 0) setNumSensors(values.length);
+
 											setLatestData({
 												rawData: buffer.trim(),
 												values,
 											});
-
-											// dataStore.setLastData(buffer);
 										}
 
 										buffer = "";

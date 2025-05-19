@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type SetStateAction, type Dispatch } from "react";
+import { useState, useEffect, useRef, type SetStateAction, type Dispatch } from "react";
 import {
 	AlertTriangle,
 	ChevronDown,
@@ -27,7 +27,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import SensorBar from "~/components/SensorBar";
 import TimeSeriesGraph from "~/components/TimeSeriesGraph";
-import { useProfileManager, DEFAULT_PROFILE, type ProfileData } from "~/lib/useProfileManager";
+import { useProfileManager, type ProfileData } from "~/lib/useProfileManager";
 import { cn } from "~/lib/utils";
 import {
 	useColorSettings,
@@ -37,10 +37,25 @@ import {
 	useGeneralSettings,
 	useSettingsBulkActions,
 } from "~/store/settingsStore";
+import { useSensorCount } from "~/store/dataStore";
+
+// annoying but needed to prevent re-renders of some components with specific callbacks
+function useStableCallback<Args extends unknown[]>(callback: (...args: Args) => void): (...args: Args) => void {
+	const callbackRef = useRef(callback);
+	callbackRef.current = callback;
+
+	const stableCallbackRef = useRef((...args: Args) => {
+		callbackRef.current(...args);
+	});
+
+	return stableCallbackRef.current;
+}
 
 const Dashboard = () => {
 	const { isSupported, connect, disconnect, connected, connectionError, requestsPerSecond, sendText, latestData } =
 		useSerialPort();
+
+	const numSensors = useSensorCount();
 
 	const {
 		connect: connectHR,
@@ -138,7 +153,7 @@ const Dashboard = () => {
 	}, []);
 
 	// Handle heart rate connection toggle
-	const handleHeartrateToggle = async () => {
+	const handleHeartrateToggle = useStableCallback(async () => {
 		if (!isBluetoothSupported) return;
 
 		if (connectedHR) {
@@ -146,7 +161,7 @@ const Dashboard = () => {
 		} else {
 			await connectHR();
 		}
-	};
+	});
 
 	// Function to send all thresholds to the microcontroller
 	const sendAllThresholds = () => {
@@ -259,21 +274,21 @@ const Dashboard = () => {
 		setResetProfileDialogOpen(false);
 	};
 
-	// Initialize defaults when we first get sensor data
+	// Initialize defaults when number of sensors changes
 	useEffect(() => {
-		if (!latestData) return;
+		if (numSensors === 0) return;
 
 		// Initialize missing thresholds with default value
-		if (thresholds.length !== latestData.values.length) {
-			const newThresholds = Array(latestData.values.length).fill(512);
+		if (thresholds.length !== numSensors) {
+			const newThresholds = Array(numSensors).fill(512);
 			setThresholds(newThresholds);
 
 			if (activeProfileId) updateThresholds(newThresholds);
 		}
 
 		// Initialize missing sensor labels
-		if (sensorLabels.length !== latestData.values.length) {
-			const newLabels = Array(latestData.values.length)
+		if (sensorLabels.length !== numSensors) {
+			const newLabels = Array(numSensors)
 				.fill("")
 				.map((_, i) => `Sensor ${i + 1}`);
 
@@ -283,11 +298,10 @@ const Dashboard = () => {
 		}
 
 		// Initialize color picker open state
-		if (openColorPickers.length !== latestData.values.length)
-			setOpenColorPickers(Array(latestData.values.length).fill(false));
-	}, [thresholds.length, sensorLabels.length, openColorPickers.length, activeProfileId]);
+		if (openColorPickers.length !== numSensors) setOpenColorPickers(Array(numSensors).fill(false));
+	}, [numSensors, thresholds.length, sensorLabels.length, openColorPickers.length, activeProfileId]);
 
-	const handleThresholdChange = (index: number, value: number) => {
+	const handleThresholdChange = useStableCallback((index: number, value: number) => {
 		const newThresholds = [...thresholds];
 		newThresholds[index] = value;
 		setThresholds(newThresholds);
@@ -299,7 +313,7 @@ const Dashboard = () => {
 			const message = `${index} ${value}\n`;
 			sendText(message);
 		}
-	};
+	});
 
 	const handleLabelChange = (index: number, value: string) => {
 		const newLabels = [...sensorLabels];
@@ -309,15 +323,15 @@ const Dashboard = () => {
 		if (activeProfileId) updateSensorLabels(newLabels);
 	};
 
-	const handleConnectionToggle = async () => {
+	const handleConnectionToggle = useStableCallback(async () => {
 		if (!isSupported) return;
 
 		if (connected) {
 			await disconnect();
-		} else {
-			await connect();
+			return;
 		}
-	};
+		await connect();
+	});
 
 	const handleColorChange = (index: number, color: string) => {
 		const newColors = [...colorSettings.sensorColors];
@@ -330,44 +344,28 @@ const Dashboard = () => {
 		graphSettings.setTimeWindow(Number.isNaN(value) || value < 0 ? 0 : value);
 	};
 
-	// Collapsible sections management
-	const collapsibleSections: Record<string, [boolean, Dispatch<SetStateAction<boolean>>]> = {
-		profiles: [isProfilesOpen, setIsProfilesOpen],
-		generalSettings: [isGeneralSettingsOpen, setIsGeneralSettingsOpen],
-		visuals: [isVisualsOpen, setIsVisualsOpen],
-		lastResult: [isLastResultOpen, setIsLastResultOpen],
-		thresholds: [isThresholdsOpen, setIsThresholdsOpen],
-		heartrate: [isHeartrateOpen, setIsHeartrateOpen],
-	};
-
-	const minimizeAllSections = () => {
-		for (const [_, setter] of Object.values(collapsibleSections)) setter(false);
-	};
-
-	const sensorBars = latestData
-		? latestData.values.map((value, index) => (
-				<SensorBar
-					// biome-ignore lint/suspicious/noArrayIndexKey:
-					key={`sensor-${index}`}
-					value={value}
-					index={index}
-					threshold={thresholds[index] || 512}
-					onThresholdChange={handleThresholdChange}
-					label={sensorLabels[index] || `Sensor ${index + 1}`}
-					color={
-						barSettings.useSingleColor
-							? colorSettings.singleBarColor
-							: colorSettings.sensorColors[index % colorSettings.sensorColors.length] || "#ff0000"
-					}
-					showThresholdText={barSettings.showBarThresholdText}
-					showValueText={barSettings.showBarValueText}
-					thresholdColor={colorSettings.thresholdColor}
-					useThresholdColor={barSettings.useThresholdColor}
-					useGradient={barSettings.useBarGradient}
-					isLocked={generalSettings.lockThresholds}
-				/>
-			))
-		: null;
+	const sensorBars = Array.from({ length: numSensors }, (_, index) => (
+		<SensorBar
+			// biome-ignore lint/suspicious/noArrayIndexKey:
+			key={`sensor-${index}`}
+			value={latestData?.values[index] || 0}
+			index={index}
+			threshold={thresholds[index] || 512}
+			onThresholdChange={handleThresholdChange}
+			label={sensorLabels[index] || `Sensor ${index + 1}`}
+			color={
+				barSettings.useSingleColor
+					? colorSettings.singleBarColor
+					: colorSettings.sensorColors[index % colorSettings.sensorColors.length] || "#ff0000"
+			}
+			showThresholdText={barSettings.showBarThresholdText}
+			showValueText={barSettings.showBarValueText}
+			thresholdColor={colorSettings.thresholdColor}
+			useThresholdColor={barSettings.useThresholdColor}
+			useGradient={barSettings.useBarGradient}
+			isLocked={generalSettings.lockThresholds}
+		/>
+	));
 
 	return (
 		<main className="grid grid-cols-[17rem_1fr] h-screen w-screen bg-background text-foreground overflow-hidden">
@@ -420,27 +418,6 @@ const Dashboard = () => {
 									<span className="text-xs text-gray-600">Requests/sec:</span>
 									<span className="text-sm font-medium">{requestsPerSecond}</span>
 								</div>
-							</div>
-
-							<div className="flex items-center gap-2">
-								<Button variant="outline" size="sm" className="flex-1" onClick={minimizeAllSections}>
-									Minimize all toolbars
-								</Button>
-								<TooltipProvider>
-									<Tooltip delayDuration={500}>
-										<TooltipTrigger asChild>
-											<div className="flex items-center justify-center h-8 w-8 rounded-md border-input hover:text-accent-foreground">
-												<HelpCircle className="size-4 text-muted-foreground" />
-											</div>
-										</TooltipTrigger>
-										<TooltipContent>
-											<p className="max-w-3xs">
-												Minimizing all of the toolbars in the sidebar will improve the number of possible requests/sec
-												and results in smoother visual response.
-											</p>
-										</TooltipContent>
-									</Tooltip>
-								</TooltipProvider>
 							</div>
 
 							{/* Profile Management Section */}
@@ -674,47 +651,55 @@ const Dashboard = () => {
 										</CollapsibleTrigger>
 										<CollapsibleContent className="mt-2">
 											<div className="flex flex-col gap-3">
-												{colorSettings.sensorColors.map((color, index) => (
-													// biome-ignore lint/suspicious/noArrayIndexKey:
-													<div key={`color-picker-${index}`} className="flex items-center justify-between gap-2">
-														<Input
-															type="text"
-															value={sensorLabels[index] ?? ""}
-															onChange={(e) => handleLabelChange(index, e.target.value)}
-															placeholder={`Sensor ${index + 1}`}
-															className="h-7 px-2 py-1"
-														/>
-														<Popover
-															open={openColorPickers[index]}
-															onOpenChange={(open) => {
-																const newOpenState = [...openColorPickers];
-																newOpenState[index] = open;
-																setOpenColorPickers(newOpenState);
-															}}
-														>
-															<PopoverTrigger asChild>
-																<button
-																	type="button"
-																	className="size-7 rounded border cursor-pointer"
-																	style={{ backgroundColor: color }}
-																	aria-label={`Change color for ${sensorLabels[index] || `Sensor ${index + 1}`}`}
-																/>
-															</PopoverTrigger>
-															<PopoverContent className="w-auto p-3" side="right">
-																<HexColorPicker
-																	color={color}
-																	onChange={(newColor) => handleColorChange(index, newColor)}
-																/>
+												{numSensors > 0 ? (
+													Array.from({ length: numSensors }).map((_, index) => {
+														const colorIndex = index % colorSettings.sensorColors.length;
+														const color = colorSettings.sensorColors[colorIndex];
+														return (
+															// biome-ignore lint/suspicious/noArrayIndexKey:
+															<div key={`color-picker-${index}`} className="flex items-center justify-between gap-2">
 																<Input
 																	type="text"
-																	value={color}
-																	onChange={(e) => handleColorChange(index, e.target.value)}
-																	className="mt-2"
+																	value={sensorLabels[index] ?? ""}
+																	onChange={(e) => handleLabelChange(index, e.target.value)}
+																	placeholder={`Sensor ${index + 1}`}
+																	className="h-7 px-2 py-1"
 																/>
-															</PopoverContent>
-														</Popover>
-													</div>
-												))}
+																<Popover
+																	open={openColorPickers[index]}
+																	onOpenChange={(open) => {
+																		const newOpenState = [...openColorPickers];
+																		newOpenState[index] = open;
+																		setOpenColorPickers(newOpenState);
+																	}}
+																>
+																	<PopoverTrigger asChild>
+																		<button
+																			type="button"
+																			className="size-7 rounded border cursor-pointer"
+																			style={{ backgroundColor: color }}
+																			aria-label={`Change color for ${sensorLabels[index] || `Sensor ${index + 1}`}`}
+																		/>
+																	</PopoverTrigger>
+																	<PopoverContent className="w-auto p-3" side="right">
+																		<HexColorPicker
+																			color={color}
+																			onChange={(newColor) => handleColorChange(index, newColor)}
+																		/>
+																		<Input
+																			type="text"
+																			value={color}
+																			onChange={(e) => handleColorChange(index, e.target.value)}
+																			className="mt-2"
+																		/>
+																	</PopoverContent>
+																</Popover>
+															</div>
+														);
+													})
+												) : (
+													<div className="text-xs text-center py-2">No sensors detected</div>
+												)}
 											</div>
 										</CollapsibleContent>
 									</Collapsible>

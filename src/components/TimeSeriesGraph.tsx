@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { maxSensorVal } from "./SensorBar";
+import { useSensorCount } from "@/store/dataStore";
 
 interface TimeSeriesGraphProps {
 	latestData: { values: number[] } | null;
@@ -35,6 +36,7 @@ const TimeSeriesGraph = ({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const timeSeriesDataRef = useRef<Array<Array<{ value: number; timestamp: number }>>>([]);
 	const requestIdRef = useRef<number | null>(null);
+	const numSensors = useSensorCount();
 
 	// Update time series data when new values come in
 	useEffect(() => {
@@ -278,10 +280,11 @@ const TimeSeriesGraph = ({
 			const legendSpacing = Math.min(80, width / 8);
 			ctx.font = "12px sans-serif";
 
-			sensorColors.forEach((color, index) => {
+			Array.from({ length: numSensors }).forEach((_, index) => {
 				if (index >= sensorLabels.length) return;
 
 				const legendX = 10 + index * legendSpacing;
+				const color = sensorColors[index % sensorColors.length];
 
 				// Draw color box
 				ctx.fillStyle = color;
@@ -294,7 +297,7 @@ const TimeSeriesGraph = ({
 			});
 
 			if (showActivation) {
-				const activationLegendX = 10 + sensorColors.length * legendSpacing;
+				const activationLegendX = 10 + numSensors * legendSpacing;
 
 				// Draw activation color box
 				ctx.fillStyle = activationColor;
