@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // Standard GATT Heartrate Service UUIDs
 const HEARTRATE_SERVICE = "0000180d-0000-1000-8000-00805f9b34fb"; // Heartrate Service
@@ -35,7 +35,7 @@ export const useHeartrateMonitor = () => {
 	}, [isConnected]);
 
 	// Function to parse heartrate data from the characteristic value
-	const parseHeartrate = useCallback((value: DataView): number => {
+	const parseHeartrate = (value: DataView): number => {
 		// Defined in GATT spec
 		// The first byte contains flags
 		// If the LSB of the flags is 0, the heartrate is in the 2nd byte (uint8)
@@ -51,128 +51,122 @@ export const useHeartrateMonitor = () => {
 		}
 
 		return heartrate;
-	}, []);
+	};
 
 	// Handler for receiving heartrate data
-	const handleHeartrateNotification = useCallback(
-		(event: Event) => {
-			const chrValue = event.target as unknown as BluetoothRemoteGATTCharacteristic;
-			const value = chrValue.value;
+	const handleHeartrateNotification = (event: Event) => {
+		const chrValue = event.target as unknown as BluetoothRemoteGATTCharacteristic;
+		const value = chrValue.value;
 
-			// If we're receiving data, we're definitely connected
-			if (!isConnectedRef.current) setIsConnected(true);
+		// If we're receiving data, we're definitely connected
+		if (!isConnectedRef.current) setIsConnected(true);
 
-			if (value) {
-				const heartrate = parseHeartrate(value);
-				setHeartrateData({
-					heartrate,
-					timestamp: Date.now(),
-				});
-			}
-		},
-		[parseHeartrate]
-	);
+		if (value) {
+			const heartrate = parseHeartrate(value);
+			setHeartrateData({
+				heartrate,
+				timestamp: Date.now(),
+			});
+		}
+	};
 
 	// Check if an error is a common reconnection error that should be suppressed
-	const isCommonReconnectError = useCallback((err: unknown): boolean => {
+	const isCommonReconnectError = (err: unknown): boolean => {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		return errorMessage.includes(GATT_DISCONNECTED_ERROR);
-	}, []);
+	};
 
 	// Establish GATT connection
-	const setupGattConnection = useCallback(
-		async (connectedDevice: BluetoothDevice): Promise<boolean> => {
-			let attemptCounter = 0;
-			let currentServer: BluetoothRemoteGATTServer | null = null;
+	const setupGattConnection = async (connectedDevice: BluetoothDevice): Promise<boolean> => {
+		let attemptCounter = 0;
+		let currentServer: BluetoothRemoteGATTServer | null = null;
 
-			// Reset states at beginning of connection attempt
-			setIsConnected(false);
-			isConnectedRef.current = false;
-			setReconnectAttempts(0);
-			setError(null);
+		// Reset states at beginning of connection attempt
+		setIsConnected(false);
+		isConnectedRef.current = false;
+		setReconnectAttempts(0);
+		setError(null);
 
-			while (attemptCounter <= MAX_RECONNECT_ATTEMPTS) {
-				try {
-					setReconnectAttempts(attemptCounter);
+		while (attemptCounter <= MAX_RECONNECT_ATTEMPTS) {
+			try {
+				setReconnectAttempts(attemptCounter);
 
-					// Mark as reconnecting if this isn't the first attempt
-					setIsReconnecting(attemptCounter > 0);
+				// Mark as reconnecting if this isn't the first attempt
+				setIsReconnecting(attemptCounter > 0);
 
-					// Connect to GATT server
-					const newServer = await connectedDevice.gatt?.connect();
-					if (!newServer) throw new Error("Failed to connect to GATT server");
+				// Connect to GATT server
+				const newServer = await connectedDevice.gatt?.connect();
+				if (!newServer) throw new Error("Failed to connect to GATT server");
 
-					currentServer = newServer;
-					setServer(newServer);
+				currentServer = newServer;
+				setServer(newServer);
 
-					// Wait briefly to ensure connection is stable
-					const delayTime = attemptCounter === 0 ? 600 : 300;
-					await new Promise((resolve) => setTimeout(resolve, delayTime));
+				// Wait briefly to ensure connection is stable
+				const delayTime = attemptCounter === 0 ? 600 : 300;
+				await new Promise((resolve) => setTimeout(resolve, delayTime));
 
-					if (!newServer.connected) throw new Error("GATT Server disconnected immediately after connection");
+				if (!newServer.connected) throw new Error("GATT Server disconnected immediately after connection");
 
-					// Get heartrate service and characteristic
-					const service = await newServer.getPrimaryService(HEARTRATE_SERVICE);
-					const newCharacteristic = await service.getCharacteristic(HEARTRATE_CHARACTERISTIC);
+				// Get heartrate service and characteristic
+				const service = await newServer.getPrimaryService(HEARTRATE_SERVICE);
+				const newCharacteristic = await service.getCharacteristic(HEARTRATE_CHARACTERISTIC);
 
-					setCharacteristic(newCharacteristic);
+				setCharacteristic(newCharacteristic);
 
-					// Start notifications
-					await newCharacteristic.startNotifications();
-					newCharacteristic.addEventListener("characteristicvaluechanged", handleHeartrateNotification);
+				// Start notifications
+				await newCharacteristic.startNotifications();
+				newCharacteristic.addEventListener("characteristicvaluechanged", handleHeartrateNotification);
 
-					// Reset connection states and mark as connected
-					setReconnectAttempts(0);
-					setIsReconnecting(false);
-					setIsConnecting(false);
-					setError(null);
-					setIsConnected(true);
-					isConnectedRef.current = true;
+				// Reset connection states and mark as connected
+				setReconnectAttempts(0);
+				setIsReconnecting(false);
+				setIsConnecting(false);
+				setError(null);
+				setIsConnected(true);
+				isConnectedRef.current = true;
 
-					return true;
-				} catch (err) {
-					// Clean up server connection if it exists
-					if (currentServer?.connected) {
-						try {
-							currentServer.disconnect();
-						} catch (disconnectErr) {
-							// Ignore disconnection errors
-						}
+				return true;
+			} catch (err) {
+				// Clean up server connection if it exists
+				if (currentServer?.connected) {
+					try {
+						currentServer.disconnect();
+					} catch (disconnectErr) {
+						// Ignore disconnection errors
 					}
-
-					// Only increment attempt counter if we haven't reached the max attempts
-					if (attemptCounter < MAX_RECONNECT_ATTEMPTS) {
-						// Wait before trying again with increasing delay
-						const dynamicDelay = RECONNECT_DELAY * (1 + 0.5 * attemptCounter);
-						await new Promise((resolve) => setTimeout(resolve, dynamicDelay));
-						attemptCounter++;
-						continue;
-					}
-
-					// Report error and reset states since all attempts failed
-					setReconnectAttempts(0);
-					setIsReconnecting(false);
-					setIsConnecting(false);
-					setIsConnected(false);
-					isConnectedRef.current = false;
-
-					// Only set error if it's not a common error
-					if (!isCommonReconnectError(err)) {
-						setError(`Failed to connect: ${err instanceof Error ? err.message : String(err)}`);
-					} else {
-						setError("Failed to establish a stable connection with the heartrate monitor");
-					}
-					return false;
 				}
-			}
 
-			return false;
-		},
-		[handleHeartrateNotification, isCommonReconnectError]
-	);
+				// Only increment attempt counter if we haven't reached the max attempts
+				if (attemptCounter < MAX_RECONNECT_ATTEMPTS) {
+					// Wait before trying again with increasing delay
+					const dynamicDelay = RECONNECT_DELAY * (1 + 0.5 * attemptCounter);
+					await new Promise((resolve) => setTimeout(resolve, dynamicDelay));
+					attemptCounter++;
+					continue;
+				}
+
+				// Report error and reset states since all attempts failed
+				setReconnectAttempts(0);
+				setIsReconnecting(false);
+				setIsConnecting(false);
+				setIsConnected(false);
+				isConnectedRef.current = false;
+
+				// Only set error if it's not a common error
+				if (!isCommonReconnectError(err)) {
+					setError(`Failed to connect: ${err instanceof Error ? err.message : String(err)}`);
+				} else {
+					setError("Failed to establish a stable connection with the heartrate monitor");
+				}
+				return false;
+			}
+		}
+
+		return false;
+	};
 
 	// Connect to a heartrate monitor
-	const connect = useCallback(async () => {
+	const connect = async () => {
 		if (!isSupported) {
 			setError("WebBluetooth is not supported in this browser");
 			return false;
@@ -188,7 +182,9 @@ export const useHeartrateMonitor = () => {
 			isConnectedRef.current = false;
 
 			// Create filters for the Bluetooth device request
-			const filters: Array<{ services?: string[]; name?: string; namePrefix?: string }> = [{ services: [HEARTRATE_SERVICE] }];
+			const filters: Array<{ services?: string[]; name?: string; namePrefix?: string }> = [
+				{ services: [HEARTRATE_SERVICE] },
+			];
 
 			// Request device with heartrate service
 			const device = await navigator.bluetooth.requestDevice({ filters });
@@ -228,10 +224,10 @@ export const useHeartrateMonitor = () => {
 			isConnectedRef.current = false;
 			return false;
 		}
-	}, [isSupported, setupGattConnection, isConnecting, isReconnecting]);
+	};
 
 	// Disconnect from heartrate monitor
-	const disconnect = useCallback(async () => {
+	const disconnect = async () => {
 		// Clean up characteristic
 		if (characteristic) {
 			try {
@@ -266,7 +262,7 @@ export const useHeartrateMonitor = () => {
 		setIsConnecting(false);
 		setIsConnected(false);
 		isConnectedRef.current = false;
-	}, [characteristic, device, handleHeartrateNotification, server]);
+	};
 
 	// Clean up when component unmounts
 	useEffect(() => {

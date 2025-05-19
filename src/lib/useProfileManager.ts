@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { openDB, type IDBPDatabase } from "idb";
 
 // Database configuration
@@ -83,7 +83,7 @@ export function useProfileManager() {
 	const [error, setError] = useState<string | null>(null);
 
 	// Helper function to save the last active profile ID
-	const saveLastActiveProfileId = useCallback(async (database: IDBPDatabase, profileId: number) => {
+	const saveLastActiveProfileId = async (database: IDBPDatabase, profileId: number) => {
 		try {
 			// Check if we already have a setting
 			const existingSetting = await database.getFromIndex(SETTINGS_STORE, "key", "lastActiveProfileId");
@@ -104,7 +104,7 @@ export function useProfileManager() {
 		} catch (err) {
 			console.error("Failed to save last active profile ID:", err);
 		}
-	}, []);
+	};
 
 	// Initialize the database
 	useEffect(() => {
@@ -195,217 +195,196 @@ export function useProfileManager() {
 		};
 
 		initDb();
-	}, [saveLastActiveProfileId]);
+	}, []);
 
 	// Create a new profile
-	const createProfile = useCallback(
-		async (name: string, baseProfileId?: number) => {
-			if (!db) return null;
+	const createProfile = async (name: string, baseProfileId?: number) => {
+		if (!db) return null;
 
-			try {
-				let baseProfile: Partial<ProfileData> = DEFAULT_PROFILE;
+		try {
+			let baseProfile: Partial<ProfileData> = DEFAULT_PROFILE;
 
-				// If a base profile ID is provided, use that profile as a base
-				if (baseProfileId) {
-					const existingProfile = await db.get(PROFILES_STORE, baseProfileId);
+			// If a base profile ID is provided, use that profile as a base
+			if (baseProfileId) {
+				const existingProfile = await db.get(PROFILES_STORE, baseProfileId);
 
-					if (existingProfile) {
-						// Remove id to create a new profile
-						const { id, ...rest } = existingProfile as ProfileData;
-						baseProfile = rest;
-					}
+				if (existingProfile) {
+					// Remove id to create a new profile
+					const { id, ...rest } = existingProfile as ProfileData;
+					baseProfile = rest;
 				}
-
-				const timestamp = Date.now();
-				const newProfile = {
-					...baseProfile,
-					name,
-					createdAt: timestamp,
-					updatedAt: timestamp,
-				};
-
-				const id = await db.add(PROFILES_STORE, newProfile);
-				const profileWithId = { ...newProfile, id: id as number };
-
-				setProfiles((prev) => [...prev, profileWithId as ProfileData]);
-
-				return profileWithId as ProfileData;
-			} catch (err) {
-				console.error("Failed to create profile:", err);
-				setError("Failed to create profile");
-				return null;
 			}
-		},
-		[db]
-	);
+
+			const timestamp = Date.now();
+			const newProfile = {
+				...baseProfile,
+				name,
+				createdAt: timestamp,
+				updatedAt: timestamp,
+			};
+
+			const id = await db.add(PROFILES_STORE, newProfile);
+			const profileWithId = { ...newProfile, id: id as number };
+
+			setProfiles((prev) => [...prev, profileWithId as ProfileData]);
+
+			return profileWithId as ProfileData;
+		} catch (err) {
+			console.error("Failed to create profile:", err);
+			setError("Failed to create profile");
+			return null;
+		}
+	};
 
 	// Delete a profile
-	const deleteProfile = useCallback(
-		async (id: number) => {
-			if (!db) return;
+	const deleteProfile = async (id: number) => {
+		if (!db) return;
 
-			try {
-				// Don't allow deleting the last profile
-				if (profiles.length <= 1) {
-					setError("Cannot delete the last profile");
-					return;
-				}
+		try {
+			// Don't allow deleting the last profile
+			if (profiles.length <= 1) {
+				setError("Cannot delete the last profile");
+				return;
+			}
 
-				await db.delete(PROFILES_STORE, id);
+			await db.delete(PROFILES_STORE, id);
 
-				// Update profiles state
-				setProfiles((prev) => prev.filter((profile) => profile.id !== id));
+			// Update profiles state
+			setProfiles((prev) => prev.filter((profile) => profile.id !== id));
 
-				// If the active profile is being deleted, switch to another profile
-				if (activeProfileId === id) {
-					const remainingProfiles = profiles.filter((profile) => profile.id !== id);
+			// If the active profile is being deleted, switch to another profile
+			if (activeProfileId === id) {
+				const remainingProfiles = profiles.filter((profile) => profile.id !== id);
 
-					if (remainingProfiles.length > 0) {
-						const newActiveProfile = remainingProfiles[0];
-						const newId = newActiveProfile.id;
+				if (remainingProfiles.length > 0) {
+					const newActiveProfile = remainingProfiles[0];
+					const newId = newActiveProfile.id;
 
-						if (newId !== undefined) {
-							setActiveProfileId(newId);
-							setActiveProfile(newActiveProfile);
-							await saveLastActiveProfileId(db, newId);
-						}
+					if (newId !== undefined) {
+						setActiveProfileId(newId);
+						setActiveProfile(newActiveProfile);
+						await saveLastActiveProfileId(db, newId);
 					}
 				}
-			} catch (err) {
-				console.error("Failed to delete profile:", err);
-				setError("Failed to delete profile");
 			}
-		},
-		[db, profiles, activeProfileId, saveLastActiveProfileId]
-	);
+		} catch (err) {
+			console.error("Failed to delete profile:", err);
+			setError("Failed to delete profile");
+		}
+	};
 
 	// Update a profile
-	const updateProfile = useCallback(
-		async (id: number, updates: Partial<Omit<ProfileData, "id" | "createdAt" | "updatedAt">>) => {
-			if (!db) return;
+	const updateProfile = async (id: number, updates: Partial<Omit<ProfileData, "id" | "createdAt" | "updatedAt">>) => {
+		if (!db) return;
 
-			try {
-				const existingProfile = await db.get(PROFILES_STORE, id);
-				if (!existingProfile) {
-					setError("Profile not found");
-					return;
-				}
-
-				const updatedProfile = {
-					...existingProfile,
-					...updates,
-					updatedAt: Date.now(),
-				};
-
-				await db.put(PROFILES_STORE, updatedProfile);
-
-				// Update profiles state
-				setProfiles((prev) => prev.map((profile) => (profile.id === id ? (updatedProfile as ProfileData) : profile)));
-
-				// If this is the active profile, update the active profile state
-				if (activeProfileId === id) setActiveProfile(updatedProfile as ProfileData);
-			} catch (err) {
-				console.error("Failed to update profile:", err);
-				setError("Failed to update profile");
+		try {
+			const existingProfile = await db.get(PROFILES_STORE, id);
+			if (!existingProfile) {
+				setError("Profile not found");
+				return;
 			}
-		},
-		[db, activeProfileId]
-	);
+
+			const updatedProfile = {
+				...existingProfile,
+				...updates,
+				updatedAt: Date.now(),
+			};
+
+			await db.put(PROFILES_STORE, updatedProfile);
+
+			// Update profiles state
+			setProfiles((prev) => prev.map((profile) => (profile.id === id ? (updatedProfile as ProfileData) : profile)));
+
+			// If this is the active profile, update the active profile state
+			if (activeProfileId === id) setActiveProfile(updatedProfile as ProfileData);
+		} catch (err) {
+			console.error("Failed to update profile:", err);
+			setError("Failed to update profile");
+		}
+	};
 
 	// Set active profile
-	const setActiveProfileById = useCallback(
-		async (id: number) => {
-			if (!db) return;
+	const setActiveProfileById = async (id: number) => {
+		if (!db) return;
 
-			try {
-				const profile = await db.get(PROFILES_STORE, id);
+		try {
+			const profile = await db.get(PROFILES_STORE, id);
 
-				if (!profile) {
-					setError("Profile not found");
-					return;
-				}
-
-				setActiveProfileId(id);
-				setActiveProfile(profile as ProfileData);
-
-				await saveLastActiveProfileId(db, id);
-			} catch (err) {
-				console.error("Failed to set active profile:", err);
-				setError("Failed to set active profile");
+			if (!profile) {
+				setError("Profile not found");
+				return;
 			}
-		},
-		[db, saveLastActiveProfileId]
-	);
+
+			setActiveProfileId(id);
+			setActiveProfile(profile as ProfileData);
+
+			await saveLastActiveProfileId(db, id);
+		} catch (err) {
+			console.error("Failed to set active profile:", err);
+			setError("Failed to set active profile");
+		}
+	};
 
 	// Update thresholds for active profile
-	const updateThresholds = useCallback(
-		async (newThresholds: number[]) => {
-			if (!activeProfileId || !db) return;
+	const updateThresholds = async (newThresholds: number[]) => {
+		if (!activeProfileId || !db) return;
 
-			try {
-				await updateProfile(activeProfileId, { thresholds: newThresholds });
-			} catch (err) {
-				console.error("Failed to update thresholds:", err);
-			}
-		},
-		[activeProfileId, db, updateProfile]
-	);
+		try {
+			await updateProfile(activeProfileId, { thresholds: newThresholds });
+		} catch (err) {
+			console.error("Failed to update thresholds:", err);
+		}
+	};
 
 	// Update sensor labels for active profile
-	const updateSensorLabels = useCallback(
-		async (newLabels: string[]) => {
-			if (!activeProfileId || !db) return;
+	const updateSensorLabels = async (newLabels: string[]) => {
+		if (!activeProfileId || !db) return;
 
-			try {
-				await updateProfile(activeProfileId, { sensorLabels: newLabels });
-			} catch (err) {
-				console.error("Failed to update sensor labels:", err);
-			}
-		},
-		[activeProfileId, db, updateProfile]
-	);
+		try {
+			await updateProfile(activeProfileId, { sensorLabels: newLabels });
+		} catch (err) {
+			console.error("Failed to update sensor labels:", err);
+		}
+	};
 
 	// Reset profile to default values except name, id, timestamps
-	const resetProfileToDefaults = useCallback(
-		async (id: number) => {
-			if (!db) return null;
+	const resetProfileToDefaults = async (id: number) => {
+		if (!db) return null;
 
-			try {
-				const existingProfile = await db.get(PROFILES_STORE, id);
-				if (!existingProfile) {
-					setError("Profile not found");
-					return null;
-				}
-
-				const { name, id: profileId, createdAt } = existingProfile as ProfileData;
-
-				const updatedProfile = {
-					...DEFAULT_PROFILE,
-					thresholds: existingProfile.thresholds, // Keep threshold values
-					sensorLabels: existingProfile.sensorLabels, // Keep sensor labels
-					name, // Keep the profile name
-					id: profileId, // Keep the profile ID
-					createdAt, // Keep the original creation timestamp
-					updatedAt: Date.now(), // Update the updated timestamp
-				};
-
-				await db.put(PROFILES_STORE, updatedProfile);
-
-				// Update profiles state
-				setProfiles((prev) => prev.map((profile) => (profile.id === id ? (updatedProfile as ProfileData) : profile)));
-
-				// If this is the active profile, update the active profile state
-				if (activeProfileId === id) setActiveProfile(updatedProfile as ProfileData);
-
-				return updatedProfile as ProfileData;
-			} catch (err) {
-				console.error("Failed to reset profile:", err);
-				setError("Failed to reset profile");
+		try {
+			const existingProfile = await db.get(PROFILES_STORE, id);
+			if (!existingProfile) {
+				setError("Profile not found");
 				return null;
 			}
-		},
-		[db, activeProfileId]
-	);
+
+			const { name, id: profileId, createdAt } = existingProfile as ProfileData;
+
+			const updatedProfile = {
+				...DEFAULT_PROFILE,
+				thresholds: existingProfile.thresholds, // Keep threshold values
+				sensorLabels: existingProfile.sensorLabels, // Keep sensor labels
+				name, // Keep the profile name
+				id: profileId, // Keep the profile ID
+				createdAt, // Keep the original creation timestamp
+				updatedAt: Date.now(), // Update the updated timestamp
+			};
+
+			await db.put(PROFILES_STORE, updatedProfile);
+
+			// Update profiles state
+			setProfiles((prev) => prev.map((profile) => (profile.id === id ? (updatedProfile as ProfileData) : profile)));
+
+			// If this is the active profile, update the active profile state
+			if (activeProfileId === id) setActiveProfile(updatedProfile as ProfileData);
+
+			return updatedProfile as ProfileData;
+		} catch (err) {
+			console.error("Failed to reset profile:", err);
+			setError("Failed to reset profile");
+			return null;
+		}
+	};
 
 	return {
 		profiles,
