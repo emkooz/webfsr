@@ -37,6 +37,8 @@ export interface ProfileData {
 	fillHeartIcon: boolean;
 	showBpmText: boolean;
 	animateHeartbeat: boolean;
+	pollingRate: number;
+	useUnthrottledPolling: boolean;
 }
 
 export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"> = {
@@ -72,6 +74,8 @@ export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"
 	fillHeartIcon: true,
 	showBpmText: true,
 	animateHeartbeat: true,
+	pollingRate: 100,
+	useUnthrottledPolling: false,
 };
 
 export function useProfileManager() {

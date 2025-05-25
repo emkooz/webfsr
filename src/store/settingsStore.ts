@@ -33,6 +33,8 @@ interface SettingsState {
 
 	// General settings
 	lockThresholds: boolean;
+	pollingRate: number;
+	useUnthrottledPolling: boolean;
 
 	// Actions
 	setSensorColors: (colors: string[]) => void;
@@ -61,6 +63,8 @@ interface SettingsState {
 	setAnimateHeartbeat: (animate: boolean) => void;
 
 	setLockThresholds: (lock: boolean) => void;
+	setPollingRate: (rate: number) => void;
+	setUseUnthrottledPolling: (use: boolean) => void;
 
 	// Bulk actions
 	updateAllSettings: (settings: Partial<SettingsState>) => void;
@@ -95,6 +99,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	animateHeartbeat: DEFAULT_PROFILE.animateHeartbeat,
 
 	lockThresholds: DEFAULT_PROFILE.lockThresholds,
+	pollingRate: DEFAULT_PROFILE.pollingRate,
+	useUnthrottledPolling: DEFAULT_PROFILE.useUnthrottledPolling,
 
 	// Individual setters
 	setSensorColors: (colors) => set({ sensorColors: colors }),
@@ -123,6 +129,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	setAnimateHeartbeat: (animate) => set({ animateHeartbeat: animate }),
 
 	setLockThresholds: (lock) => set({ lockThresholds: lock }),
+	setPollingRate: (rate) => set({ pollingRate: rate }),
+	setUseUnthrottledPolling: (use) => set({ useUnthrottledPolling: use }),
 
 	// Bulk actions
 	updateAllSettings: (settings) => set(settings),
@@ -154,6 +162,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 			animateHeartbeat: DEFAULT_PROFILE.animateHeartbeat,
 
 			lockThresholds: DEFAULT_PROFILE.lockThresholds,
+			pollingRate: DEFAULT_PROFILE.pollingRate,
+			useUnthrottledPolling: DEFAULT_PROFILE.useUnthrottledPolling,
 		}),
 }));
 
@@ -273,10 +283,18 @@ export const useHeartrateSettings = () => {
 export const useGeneralSettings = () => {
 	const lockThresholds = useSettingsStore((state) => state.lockThresholds);
 	const setLockThresholds = useSettingsStore((state) => state.setLockThresholds);
+	const pollingRate = useSettingsStore((state) => state.pollingRate);
+	const setPollingRate = useSettingsStore((state) => state.setPollingRate);
+	const useUnthrottledPolling = useSettingsStore((state) => state.useUnthrottledPolling);
+	const setUseUnthrottledPolling = useSettingsStore((state) => state.setUseUnthrottledPolling);
 
 	return {
 		lockThresholds,
 		setLockThresholds,
+		pollingRate,
+		setPollingRate,
+		useUnthrottledPolling,
+		setUseUnthrottledPolling,
 	};
 };
 
@@ -310,6 +328,8 @@ export const useSettingsBulkActions = () => {
 		fillHeartIcon: state.fillHeartIcon,
 		showBpmText: state.showBpmText,
 		animateHeartbeat: state.animateHeartbeat,
+		pollingRate: state.pollingRate,
+		useUnthrottledPolling: state.useUnthrottledPolling,
 	});
 
 	return {

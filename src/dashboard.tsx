@@ -52,8 +52,15 @@ function useStableCallback<Args extends unknown[]>(callback: (...args: Args) => 
 }
 
 const Dashboard = () => {
+	const colorSettings = useColorSettings();
+	const barSettings = useBarVisualizationSettings();
+	const graphSettings = useGraphVisualizationSettings();
+	const heartrateSettings = useHeartrateSettings();
+	const generalSettings = useGeneralSettings();
+	const { updateAllSettings, getAllSettings } = useSettingsBulkActions();
+
 	const { isSupported, connect, disconnect, connected, connectionError, requestsPerSecond, sendText, latestData } =
-		useSerialPort();
+		useSerialPort(generalSettings.pollingRate, generalSettings.useUnthrottledPolling);
 
 	const numSensors = useSensorCount();
 
@@ -86,14 +93,6 @@ const Dashboard = () => {
 	const [connectedITG, setConnectedITG] = useState<boolean>(false);
 	const [thresholds, setThresholds] = useState<number[]>([]);
 	const [sensorLabels, setSensorLabels] = useState<string[]>([]);
-
-	// Get settings from store using selectors for better organization
-	const colorSettings = useColorSettings();
-	const barSettings = useBarVisualizationSettings();
-	const graphSettings = useGraphVisualizationSettings();
-	const heartrateSettings = useHeartrateSettings();
-	const generalSettings = useGeneralSettings();
-	const { updateAllSettings, getAllSettings } = useSettingsBulkActions();
 
 	// Profile management states
 	const [profileComboboxOpen, setProfileComboboxOpen] = useState(false);
@@ -212,6 +211,8 @@ const Dashboard = () => {
 			fillHeartIcon: profile.fillHeartIcon,
 			showBpmText: profile.showBpmText,
 			animateHeartbeat: profile.animateHeartbeat,
+			pollingRate: profile.pollingRate,
+			useUnthrottledPolling: profile.useUnthrottledPolling,
 		});
 
 		// Only update thresholds and sensor labels if they exist in the profile
@@ -547,6 +548,29 @@ const Dashboard = () => {
 												checked={generalSettings.lockThresholds}
 												onCheckedChange={generalSettings.setLockThresholds}
 												aria-label="Toggle threshold locking"
+											/>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-xs">Unthrottled polling</span>
+											<Switch
+												checked={generalSettings.useUnthrottledPolling}
+												onCheckedChange={generalSettings.setUseUnthrottledPolling}
+												aria-label="Toggle unthrottled polling"
+											/>
+										</div>
+										<div className="flex flex-col gap-1">
+											<span className="text-xs pb-1">
+												Polling rate (polls/sec):{" "}
+												{generalSettings.useUnthrottledPolling ? "unlimited" : generalSettings.pollingRate}
+											</span>
+											<Slider
+												value={[generalSettings.pollingRate]}
+												min={1}
+												max={1000}
+												step={1}
+												onValueChange={(value) => generalSettings.setPollingRate(value[0])}
+												disabled={generalSettings.useUnthrottledPolling}
+												aria-label="Adjust polling rate"
 											/>
 										</div>
 									</div>

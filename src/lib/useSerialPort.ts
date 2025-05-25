@@ -6,7 +6,7 @@ export interface SerialData {
 	values: number[];
 }
 
-export const useSerialPort = () => {
+export const useSerialPort = (pollingRate = 100, useUnthrottledPolling = false) => {
 	const [port, setPort] = useState<SerialPort | null>(null);
 	const [connected, setConnected] = useState<boolean>(false);
 	const [connectionError, setConnectionError] = useState<string>("");
@@ -19,6 +19,8 @@ export const useSerialPort = () => {
 	const writerRef = useRef<WritableStreamDefaultWriter | null>(null);
 	const isReadingRef = useRef<boolean>(false);
 	const requestCountRef = useRef<number>(0);
+	const pollingRateRef = useRef<number>(pollingRate);
+	const useUnthrottledPollingRef = useRef<boolean>(useUnthrottledPolling);
 
 	// Command for requesting sensor data
 	const requestData = new Uint8Array([118, 10]);
@@ -34,6 +36,11 @@ export const useSerialPort = () => {
 
 		return () => clearInterval(interval);
 	}, [connected]);
+
+	useEffect(() => {
+		pollingRateRef.current = pollingRate;
+		useUnthrottledPollingRef.current = useUnthrottledPolling;
+	}, [pollingRate, useUnthrottledPolling]);
 
 	const connect = async () => {
 		if (!("serial" in navigator)) {
@@ -153,6 +160,13 @@ export const useSerialPort = () => {
 										}
 
 										buffer = "";
+
+										// Apply throttling if not using unthrottled polling
+										if (!useUnthrottledPollingRef.current && pollingRateRef.current > 0) {
+											const delayMs = 1000 / pollingRateRef.current;
+											await new Promise((resolve) => setTimeout(resolve, delayMs));
+										}
+
 										shouldRequestData = true;
 									}
 								}
