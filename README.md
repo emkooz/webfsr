@@ -11,10 +11,19 @@
 -  Settings to adjust the visuals of the sensor bars and the time series graph.
 -  Automatically save all settings and threshold values to profiles, stored using IndexedDB.
 -  Display heartrate monitor data using WebBluetooth.
+-  Installable as a PWA, allowing it to run in a dedicated window and offline.
 
 ## Screenshot
 
 <img src="./screenshot.png" alt="WebFSR screenshot" />
+
+## PWA Installation
+
+WebFSR is installable as a PWA. This will allow you to run it offline and in a separate window, which is more convenient than managing it in a browser tab.
+
+To install it as a PWA, find a button in the top-right corner of your browser which says "Install WebFSR":
+
+<img src="./pwa.png" alt="Install WebFSR as PWA button" />
 
 ## Use cases which are not covered
 
@@ -28,4 +37,3 @@
    -  This would be accomplished with a websocket server running locally on the machine, which will receive data from a theme module and pass it along to the client.
 -  Import profiles saved from teejusb FSR web UI.
 -  Dark mode and customize different elements to better suit displaying in OBS.
--  PWA configuration to download locally and run as a separate window.

@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/webfsr/dev-sw.js?dev-sw', { scope: '/webfsr/', type: 'classic' })
