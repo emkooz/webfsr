@@ -1,7 +1,7 @@
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
@@ -31,9 +31,9 @@ export default defineConfig({
 				name: "WebFSR",
 				short_name: "WebFSR",
 				description: "WebFSR",
-				start_url: "/webfsr/",
+				start_url: "./",
 				display: "standalone",
-				scope: "/webfsr/",
+				scope: "./",
 				theme_color: "#333333",
 				background_color: "#333333",
 				icons: [
@@ -68,5 +68,5 @@ export default defineConfig({
 			"~": path.resolve(__dirname, "./src"),
 		},
 	},
-	base: "/webfsr/",
+	base: "./",
 });
