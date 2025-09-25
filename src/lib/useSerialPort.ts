@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDataStore } from "~/store/dataStore";
 
 export interface SerialData {
@@ -6,7 +6,11 @@ export interface SerialData {
 	values: number[];
 }
 
-export const useSerialPort = (pollingRate = 100, useUnthrottledPolling = false) => {
+export const useSerialPort = (
+	pollingRate = 100,
+	useUnthrottledPolling = false,
+	onValues?: (values: number[]) => void,
+) => {
 	const [port, setPort] = useState<SerialPort | null>(null);
 	const [connected, setConnected] = useState<boolean>(false);
 	const [connectionError, setConnectionError] = useState<string>("");
@@ -21,6 +25,7 @@ export const useSerialPort = (pollingRate = 100, useUnthrottledPolling = false) 
 	const requestCountRef = useRef<number>(0);
 	const pollingRateRef = useRef<number>(pollingRate);
 	const useUnthrottledPollingRef = useRef<boolean>(useUnthrottledPolling);
+	const onValuesRef = useRef<typeof onValues>(onValues);
 
 	// Command for requesting sensor data
 	const requestData = new Uint8Array([118, 10]);
@@ -40,7 +45,8 @@ export const useSerialPort = (pollingRate = 100, useUnthrottledPolling = false) 
 	useEffect(() => {
 		pollingRateRef.current = pollingRate;
 		useUnthrottledPollingRef.current = useUnthrottledPolling;
-	}, [pollingRate, useUnthrottledPolling]);
+		onValuesRef.current = onValues;
+	}, [pollingRate, useUnthrottledPolling, onValues]);
 
 	const connect = async () => {
 		if (!("serial" in navigator)) {
@@ -157,6 +163,13 @@ export const useSerialPort = (pollingRate = 100, useUnthrottledPolling = false) 
 												rawData: buffer.trim(),
 												values,
 											});
+
+											// Notify callback on every read
+											try {
+												onValuesRef.current?.(values);
+											} catch (cbErr) {
+												console.error("onValues callback error", cbErr);
+											}
 										}
 
 										buffer = "";

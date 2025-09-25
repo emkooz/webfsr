@@ -35,6 +35,7 @@ interface SettingsState {
 	lockThresholds: boolean;
 	pollingRate: number;
 	useUnthrottledPolling: boolean;
+	obsSendRate: number;
 
 	// Actions
 	setSensorColors: (colors: string[]) => void;
@@ -65,6 +66,7 @@ interface SettingsState {
 	setLockThresholds: (lock: boolean) => void;
 	setPollingRate: (rate: number) => void;
 	setUseUnthrottledPolling: (use: boolean) => void;
+	setObsSendRate: (rate: number) => void;
 
 	// Bulk actions
 	updateAllSettings: (settings: Partial<SettingsState>) => void;
@@ -101,6 +103,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	lockThresholds: DEFAULT_PROFILE.lockThresholds,
 	pollingRate: DEFAULT_PROFILE.pollingRate,
 	useUnthrottledPolling: DEFAULT_PROFILE.useUnthrottledPolling,
+	obsSendRate: DEFAULT_PROFILE.obsSendRate ?? 30,
 
 	// Individual setters
 	setSensorColors: (colors) => set({ sensorColors: colors }),
@@ -131,6 +134,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	setLockThresholds: (lock) => set({ lockThresholds: lock }),
 	setPollingRate: (rate) => set({ pollingRate: rate }),
 	setUseUnthrottledPolling: (use) => set({ useUnthrottledPolling: use }),
+	setObsSendRate: (rate) => set({ obsSendRate: rate }),
 
 	// Bulk actions
 	updateAllSettings: (settings) => set(settings),
@@ -164,6 +168,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 			lockThresholds: DEFAULT_PROFILE.lockThresholds,
 			pollingRate: DEFAULT_PROFILE.pollingRate,
 			useUnthrottledPolling: DEFAULT_PROFILE.useUnthrottledPolling,
+			obsSendRate: DEFAULT_PROFILE.obsSendRate ?? 30,
 		}),
 }));
 
@@ -287,6 +292,8 @@ export const useGeneralSettings = () => {
 	const setPollingRate = useSettingsStore((state) => state.setPollingRate);
 	const useUnthrottledPolling = useSettingsStore((state) => state.useUnthrottledPolling);
 	const setUseUnthrottledPolling = useSettingsStore((state) => state.setUseUnthrottledPolling);
+	const obsSendRate = useSettingsStore((state) => state.obsSendRate);
+	const setObsSendRate = useSettingsStore((state) => state.setObsSendRate);
 
 	return {
 		lockThresholds,
@@ -295,6 +302,8 @@ export const useGeneralSettings = () => {
 		setPollingRate,
 		useUnthrottledPolling,
 		setUseUnthrottledPolling,
+		obsSendRate,
+		setObsSendRate,
 	};
 };
 
@@ -330,6 +339,7 @@ export const useSettingsBulkActions = () => {
 		animateHeartbeat: state.animateHeartbeat,
 		pollingRate: state.pollingRate,
 		useUnthrottledPolling: state.useUnthrottledPolling,
+		obsSendRate: state.obsSendRate,
 	});
 
 	return {

@@ -1,5 +1,5 @@
+import { type IDBPDatabase, openDB } from "idb";
 import { useEffect, useState } from "react";
-import { openDB, type IDBPDatabase } from "idb";
 
 // Database configuration
 const DB_NAME = "webfsr";
@@ -39,6 +39,8 @@ export interface ProfileData {
 	animateHeartbeat: boolean;
 	pollingRate: number;
 	useUnthrottledPolling: boolean;
+	obsPassword?: string;
+	obsSendRate?: number;
 }
 
 export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"> = {
@@ -76,6 +78,8 @@ export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"
 	animateHeartbeat: true,
 	pollingRate: 100,
 	useUnthrottledPolling: false,
+	obsPassword: "",
+	obsSendRate: 30,
 };
 
 export function useProfileManager() {
@@ -366,12 +370,14 @@ export function useProfileManager() {
 
 			const updatedProfile = {
 				...DEFAULT_PROFILE,
-				thresholds: existingProfile.thresholds, // Keep threshold values
-				sensorLabels: existingProfile.sensorLabels, // Keep sensor labels
-				name, // Keep the profile name
-				id: profileId, // Keep the profile ID
-				createdAt, // Keep the original creation timestamp
-				updatedAt: Date.now(), // Update the updated timestamp
+				thresholds: existingProfile.thresholds,
+				sensorLabels: existingProfile.sensorLabels,
+				obsPassword: (existingProfile as ProfileData).obsPassword ?? "",
+				obsSendRate: (existingProfile as ProfileData).obsSendRate ?? 30,
+				name,
+				id: profileId,
+				createdAt,
+				updatedAt: Date.now(),
 			};
 
 			await db.put(PROFILES_STORE, updatedProfile);

@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover
 import { Slider } from "~/components/ui/slider";
 import { Switch } from "~/components/ui/switch";
 import { useHeartrateMonitor } from "~/lib/useHeartrateMonitor";
+import { useOBS } from "~/lib/useOBS";
 import { type ProfileData, useProfileManager } from "~/lib/useProfileManager";
 import { useSerialPort } from "~/lib/useSerialPort";
 import { cn } from "~/lib/utils";
@@ -58,7 +59,17 @@ const Dashboard = () => {
 	const { updateAllSettings, getAllSettings } = useSettingsBulkActions();
 
 	const { isSupported, connect, disconnect, connected, connectionError, requestsPerSecond, sendText, latestData } =
-		useSerialPort(generalSettings.pollingRate, generalSettings.useUnthrottledPolling);
+		useSerialPort(generalSettings.pollingRate, generalSettings.useUnthrottledPolling, (values) => {
+			if (!obsConnected) return;
+
+			const now = performance.now();
+			const minIntervalMs = Math.max(1, 1000 / Math.max(1, generalSettings.obsSendRate));
+
+			if (now - lastBroadcastAt >= minIntervalMs) {
+				setLastBroadcastAt(now);
+				void broadcast({ values, thresholds });
+			}
+		});
 
 	const numSensors = useSensorCount();
 
@@ -112,11 +123,23 @@ const Dashboard = () => {
 	const [isGeneralVisualsOpen, setIsGeneralVisualsOpen] = useState<boolean>(true);
 	const [isBarVisualsOpen, setIsBarVisualsOpen] = useState<boolean>(true);
 	const [isGraphVisualsOpen, setIsGraphVisualsOpen] = useState<boolean>(true);
-	const [isLastResultOpen, setIsLastResultOpen] = useState<boolean>(true);
 	const [isThresholdsOpen, setIsThresholdsOpen] = useState<boolean>(true);
 
 	// Collapsible state for heartrate monitor
 	const [isHeartrateOpen, setIsHeartrateOpen] = useState<boolean>(true);
+
+	// OBS connection state
+	const {
+		connect: connectOBS,
+		disconnect: disconnectOBS,
+		isConnected: obsConnected,
+		isConnecting: obsConnecting,
+		error: obsError,
+		broadcast,
+	} = useOBS();
+	const [isOBSOpen, setIsOBSOpen] = useState<boolean>(true);
+	const [obsPassword, setObsPassword] = useState<string>("");
+	const [lastBroadcastAt, setLastBroadcastAt] = useState<number>(0);
 
 	// Calculate heart beat animation duration based on BPM
 	const heartBeatDuration =
@@ -216,6 +239,8 @@ const Dashboard = () => {
 		// Only update thresholds and sensor labels if they exist in the profile
 		if (profile.thresholds.length > 0) setThresholds(profile.thresholds);
 		if (profile.sensorLabels.length > 0) setSensorLabels(profile.sensorLabels);
+
+		setObsPassword(profile.obsPassword ?? "");
 	};
 
 	// Load active profile data into state
@@ -341,6 +366,20 @@ const Dashboard = () => {
 	const handleTimeWindowChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const value = Number.parseInt(e.target.value, 10);
 		graphSettings.setTimeWindow(Number.isNaN(value) || value < 0 ? 0 : value);
+	};
+
+	const handleObsToggle = useStableCallback(async () => {
+		if (!obsPassword) return;
+		if (obsConnected) {
+			await disconnectOBS();
+			return;
+		}
+		await connectOBS(obsPassword);
+	});
+
+	const handleObsPasswordChange = (pwd: string) => {
+		setObsPassword(pwd);
+		if (activeProfileId !== null) updateProfile(activeProfileId, { obsPassword: pwd });
 	};
 
 	const sensorBars = Array.from({ length: numSensors }, (_, index) => (
@@ -525,6 +564,57 @@ const Dashboard = () => {
 											</div>
 										</>
 									)}
+								</CollapsibleContent>
+							</Collapsible>
+
+							{/* OBS Section */}
+							<Collapsible open={isOBSOpen} onOpenChange={setIsOBSOpen} className="p-3 border rounded bg-white">
+								<CollapsibleTrigger className="flex items-center justify-between w-full">
+									<span className="text-sm font-semibold">OBS</span>
+									{isOBSOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+								</CollapsibleTrigger>
+								<CollapsibleContent className="mt-3">
+									<div className="flex flex-col gap-3">
+										<div className="flex items-center justify-between">
+											<span className="text-xs">Status</span>
+											<span
+												className={`text-xs font-medium ${obsConnected ? "text-green-600" : obsConnecting ? "text-amber-600" : "text-destructive"}`}
+											>
+												{obsConnecting ? "Connecting…" : obsConnected ? "Connected" : "Disconnected"}
+											</span>
+										</div>
+										<div className="flex flex-col gap-1">
+											<label htmlFor="obs-pwd" className="text-xs font-medium">
+												WebSocket password
+											</label>
+											<Input
+												id="obs-pwd"
+												type="password"
+												placeholder="Enter OBS password…"
+												value={obsPassword}
+												onChange={(e) => handleObsPasswordChange(e.target.value)}
+												className="h-7 px-2 py-1"
+											/>
+										</div>
+										<div className="flex flex-col gap-1">
+											<span className="text-xs font-medium">Send rate (updates/sec)</span>
+											<div className="flex items-center gap-2">
+												<Slider
+													value={[generalSettings.obsSendRate]}
+													min={1}
+													max={120}
+													step={1}
+													onValueChange={(v) => generalSettings.setObsSendRate(v[0])}
+													aria-label="Adjust OBS send rate"
+												/>
+												<span className="text-xs w-10 text-right">{generalSettings.obsSendRate}</span>
+											</div>
+										</div>
+										<Button onClick={handleObsToggle} className="w-full" disabled={!obsPassword}>
+											{obsConnected ? "Disconnect OBS" : "Connect OBS"}
+										</Button>
+										{obsError && <div className="text-xs text-destructive">{obsError}</div>}
+									</div>
 								</CollapsibleContent>
 							</Collapsible>
 
