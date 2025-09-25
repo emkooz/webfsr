@@ -1,43 +1,41 @@
-import { useState, useEffect, useRef, type SetStateAction, type Dispatch } from "react";
 import {
 	AlertTriangle,
+	Check,
 	ChevronDown,
 	ChevronRight,
-	HelpCircle,
-	Check,
 	ChevronsUpDown,
-	Plus,
-	Pencil,
-	Trash2,
 	Heart,
+	Pencil,
+	Plus,
+	Trash2,
 	Undo,
 } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { useSerialPort } from "~/lib/useSerialPort";
-import { useHeartrateMonitor } from "~/lib/useHeartrateMonitor";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/components/ui/collapsible";
+import { useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
-import { Switch } from "~/components/ui/switch";
-import { Slider } from "~/components/ui/slider";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
-import { CustomScrollArea } from "~/components/ui/custom-scroll-area";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import SensorBar from "~/components/SensorBar";
 import TimeSeriesGraph from "~/components/TimeSeriesGraph";
-import { useProfileManager, type ProfileData } from "~/lib/useProfileManager";
+import { Button } from "~/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/components/ui/collapsible";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
+import { CustomScrollArea } from "~/components/ui/custom-scroll-area";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { Slider } from "~/components/ui/slider";
+import { Switch } from "~/components/ui/switch";
+import { useHeartrateMonitor } from "~/lib/useHeartrateMonitor";
+import { type ProfileData, useProfileManager } from "~/lib/useProfileManager";
+import { useSerialPort } from "~/lib/useSerialPort";
 import { cn } from "~/lib/utils";
+import { useSensorCount } from "~/store/dataStore";
 import {
-	useColorSettings,
 	useBarVisualizationSettings,
+	useColorSettings,
+	useGeneralSettings,
 	useGraphVisualizationSettings,
 	useHeartrateSettings,
-	useGeneralSettings,
 	useSettingsBulkActions,
 } from "~/store/settingsStore";
-import { useSensorCount } from "~/store/dataStore";
 
 // annoying but needed to prevent re-renders of some components with specific callbacks
 function useStableCallback<Args extends unknown[]>(callback: (...args: Args) => void): (...args: Args) => void {

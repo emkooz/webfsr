@@ -6,6 +6,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
+	appType: "mpa",
 	plugins: [
 		react({
 			babel: {
@@ -66,6 +67,16 @@ export default defineConfig({
 		alias: {
 			"@": path.resolve(__dirname, "./src"),
 			"~": path.resolve(__dirname, "./src"),
+		},
+	},
+	build: {
+		rollupOptions: {
+			input: {
+				main: path.resolve(__dirname, "index.html"),
+				obsGraph: path.resolve(__dirname, "obs/graph/index.html"),
+				obsSensors: path.resolve(__dirname, "obs/sensors/index.html"),
+				obsHeartrate: path.resolve(__dirname, "obs/heartrate/index.html"),
+			},
 		},
 	},
 	base: "./",
