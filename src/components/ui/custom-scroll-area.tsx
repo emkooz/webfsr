@@ -1,7 +1,7 @@
 // This was required because the shadcn/radix-ui scroll area was constantly re-rendering
 // using the radix-ui component is preferred but this is a quick fix for now
 
-import { forwardRef, type HTMLAttributes, type ReactNode, useEffect, useState, useRef } from "react";
+import { type HTMLAttributes, type ReactNode, forwardRef, useEffect, useRef, useState } from "react";
 
 interface CustomScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
 	children: ReactNode;
