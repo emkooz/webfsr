@@ -103,7 +103,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	lockThresholds: DEFAULT_PROFILE.lockThresholds,
 	pollingRate: DEFAULT_PROFILE.pollingRate,
 	useUnthrottledPolling: DEFAULT_PROFILE.useUnthrottledPolling,
-	obsSendRate: DEFAULT_PROFILE.obsSendRate ?? 30,
+	obsSendRate: DEFAULT_PROFILE.obsSendRate ?? 60,
 
 	// Individual setters
 	setSensorColors: (colors) => set({ sensorColors: colors }),
@@ -168,7 +168,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 			lockThresholds: DEFAULT_PROFILE.lockThresholds,
 			pollingRate: DEFAULT_PROFILE.pollingRate,
 			useUnthrottledPolling: DEFAULT_PROFILE.useUnthrottledPolling,
-			obsSendRate: DEFAULT_PROFILE.obsSendRate ?? 30,
+			obsSendRate: DEFAULT_PROFILE.obsSendRate ?? 60,
 		}),
 }));
 

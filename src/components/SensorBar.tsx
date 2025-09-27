@@ -1,7 +1,7 @@
-import { useRef, useEffect, useState } from "react";
-import { Input } from "~/components/ui/input";
+import { Minus, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
-import { Plus, Minus } from "lucide-react";
+import { Input } from "~/components/ui/input";
 
 // Maximum value possible from sensors
 const maxSensorVal = 1023;
@@ -20,6 +20,10 @@ interface SensorBarProps {
 	useThresholdColor: boolean;
 	useGradient: boolean;
 	isLocked?: boolean;
+	hideLabel?: boolean;
+	hideControls?: boolean;
+	backgroundColor?: string;
+	labelColor?: string;
 }
 
 // Component for individual sensor bar
@@ -37,6 +41,10 @@ const SensorBar = ({
 	useThresholdColor,
 	useGradient,
 	isLocked = false,
+	hideLabel = false,
+	hideControls = false,
+	backgroundColor = "white",
+	labelColor = "inherit",
 }: SensorBarProps) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -253,50 +261,57 @@ const SensorBar = ({
 
 	return (
 		<div className="flex flex-col items-center select-none h-full px-4" ref={containerRef}>
-			<div className="text-xs font-medium mb-1 text-center">{label}</div>
+			{!hideLabel && (
+				<div className="text-xs font-medium mb-1 text-center" style={{ color: labelColor }}>
+					{label}
+				</div>
+			)}
 			<div className="relative flex-1 w-full flex flex-col mb-2 canvas-container">
 				<canvas
 					ref={canvasRef}
-					className={`border border-border rounded bg-white w-full h-full ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
+					className={`border border-border rounded w-full h-full ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
+					style={{ backgroundColor }}
 					aria-label={label}
 					onMouseDown={handleMouseDown}
 					onMouseMove={handleMouseMove}
 				/>
 			</div>
-			<div className="flex items-center gap-0.5 w-full justify-center">
-				<Button
-					variant="link"
-					size="icon"
-					className="size-6 shrink-0 p-0 hover:cursor-pointer"
-					onClick={handleDecrement}
-					disabled={isLocked}
-					aria-label="Decrease threshold"
-				>
-					<Minus className="size-3" />
-				</Button>
-				<Input
-					type="text"
-					value={inputValue}
-					onChange={(e) => setInputValue(e.target.value)}
-					onBlur={() => validateAndUpdateThreshold()}
-					onKeyDown={(e) => {
-						if (e.key === "Enter") validateAndUpdateThreshold();
-					}}
-					disabled={isLocked}
-					className="h-6 text-xs text-center px-0.5 w-12 min-w-12 shadow-none rounded-sm"
-					aria-label={`Threshold value for ${label}`}
-				/>
-				<Button
-					variant="link"
-					size="icon"
-					className="size-6 shrink-0 p-0 hover:cursor-pointer"
-					onClick={handleIncrement}
-					disabled={isLocked}
-					aria-label="Increase threshold"
-				>
-					<Plus className="size-3" />
-				</Button>
-			</div>
+			{!hideControls && (
+				<div className="flex items-center gap-0.5 w-full justify-center">
+					<Button
+						variant="link"
+						size="icon"
+						className="size-6 shrink-0 p-0 hover:cursor-pointer"
+						onClick={handleDecrement}
+						disabled={isLocked}
+						aria-label="Decrease threshold"
+					>
+						<Minus className="size-3" />
+					</Button>
+					<Input
+						type="text"
+						value={inputValue}
+						onChange={(e) => setInputValue(e.target.value)}
+						onBlur={() => validateAndUpdateThreshold()}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") validateAndUpdateThreshold();
+						}}
+						disabled={isLocked}
+						className="h-6 text-xs text-center px-0.5 w-12 min-w-12 shadow-none rounded-sm"
+						aria-label={`Threshold value for ${label}`}
+					/>
+					<Button
+						variant="link"
+						size="icon"
+						className="size-6 shrink-0 p-0 hover:cursor-pointer"
+						onClick={handleIncrement}
+						disabled={isLocked}
+						aria-label="Increase threshold"
+					>
+						<Plus className="size-3" />
+					</Button>
+				</div>
+			)}
 		</div>
 	);
 };

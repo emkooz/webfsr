@@ -1,6 +1,6 @@
-import { useRef, useEffect } from "react";
-import { maxSensorVal } from "./SensorBar";
 import { useSensorCount } from "@/store/dataStore";
+import { useEffect, useRef } from "react";
+import { maxSensorVal } from "./SensorBar";
 
 interface TimeSeriesGraphProps {
 	latestData: { values: number[] } | null;
@@ -15,6 +15,7 @@ interface TimeSeriesGraphProps {
 	showBorder: boolean;
 	showActivation: boolean;
 	activationColor: string;
+	sensorLabelColor?: string;
 }
 
 // Component for time-series graph
@@ -31,6 +32,7 @@ const TimeSeriesGraph = ({
 	showBorder,
 	showActivation,
 	activationColor,
+	sensorLabelColor = "rgba(0, 0, 0, 0.7)",
 }: TimeSeriesGraphProps) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -165,7 +167,7 @@ const TimeSeriesGraph = ({
 
 				// Draw sensor label
 				if (i < sensorLabels.length) {
-					ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+					ctx.fillStyle = sensorLabelColor;
 					ctx.font = "12px sans-serif";
 					ctx.textAlign = "right";
 					ctx.fillText(sensorLabels[i], width - 10, y + 15);
@@ -291,7 +293,7 @@ const TimeSeriesGraph = ({
 				ctx.fillRect(legendX, legendY - 10, 12, 12);
 
 				// Draw sensor text
-				ctx.fillStyle = "black";
+				ctx.fillStyle = sensorLabelColor;
 				ctx.textAlign = "left";
 				ctx.fillText(sensorLabels[index], legendX + 15, legendY);
 			});
@@ -340,7 +342,7 @@ const TimeSeriesGraph = ({
 		<div className="relative w-full h-full" ref={containerRef}>
 			<canvas
 				ref={canvasRef}
-				className={`w-full h-full bg-white ${showBorder ? "border border-border rounded" : ""}`}
+				className={`w-full h-full bg-transparent ${showBorder ? "border border-border rounded" : ""}`}
 				aria-label="Time series graph of sensor values"
 			/>
 		</div>
