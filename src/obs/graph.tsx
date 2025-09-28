@@ -10,16 +10,16 @@ type ObsPayload = ObsBroadcastPayload & {
 
 // Default configuration values
 const DEFAULT_CONFIG = {
-	timeWindow: 10000,
+	timeWindow: 2500,
 	sensorColors: ["#3a7da3", "#d4607c", "#8670d4", "#d49b20", "#459ea0", "#d45478"],
 	thresholdLineOpacity: 0.7,
 	showGridLines: true,
 	showThresholdLines: true,
-	showLegend: false,
-	showBorder: false,
 	showActivation: true,
 	activationColor: "#4dd253",
+	showSensorLabels: true,
 	sensorLabelColor: "rgba(255, 255, 255, 0.9)",
+	sensorLabels: [],
 };
 
 function getQueryPassword() {
@@ -32,15 +32,27 @@ function parseQueryConfig() {
 
 	return {
 		timeWindow: Number(params.get("window")) || DEFAULT_CONFIG.timeWindow,
-		sensorColors: params.get("colors")?.split(",") || [...DEFAULT_CONFIG.sensorColors],
+		sensorColors: (() => {
+			const raw = params.get("colors");
+			if (!raw) return [...DEFAULT_CONFIG.sensorColors];
+			const parts = raw.includes(";") ? raw.split(";") : raw.split(",");
+			return parts.map((p) => decodeURIComponent(p));
+		})(),
 		thresholdLineOpacity: Number(params.get("thresholdOpacity")) || DEFAULT_CONFIG.thresholdLineOpacity,
 		showGridLines: params.get("grid") !== "false" ? DEFAULT_CONFIG.showGridLines : false,
+		showSensorLabels: params.get("showSensorLabels") !== "false" ? DEFAULT_CONFIG.showSensorLabels : false,
 		showThresholdLines: params.get("thresholds") !== "false" ? DEFAULT_CONFIG.showThresholdLines : false,
-		showLegend: params.get("legend") === "true" ? true : DEFAULT_CONFIG.showLegend,
-		showBorder: params.get("border") === "true" ? true : DEFAULT_CONFIG.showBorder,
 		showActivation: params.get("activation") !== "false" ? DEFAULT_CONFIG.showActivation : false,
-		activationColor: params.get("activationColor") || DEFAULT_CONFIG.activationColor,
+		activationColor: (() => {
+			const ac = params.get("activationColor");
+			return ac ? decodeURIComponent(ac) : DEFAULT_CONFIG.activationColor;
+		})(),
 		sensorLabelColor: params.get("labelColor") || DEFAULT_CONFIG.sensorLabelColor,
+		sensorLabels: (() => {
+			const raw = params.get("sensorLabels");
+			if (!raw) return [...DEFAULT_CONFIG.sensorLabels];
+			return raw.split(";").map((label) => decodeURIComponent(label));
+		})(),
 	};
 }
 
@@ -103,15 +115,16 @@ function GraphOBSComponent() {
 				latestData={latestData}
 				timeWindow={config.timeWindow}
 				thresholds={thresholds}
-				sensorLabels={sensorLabels}
+				sensorLabels={config.sensorLabels.length > 0 ? config.sensorLabels : sensorLabels}
 				sensorColors={config.sensorColors}
 				showGridLines={config.showGridLines}
 				showThresholdLines={config.showThresholdLines}
 				thresholdLineOpacity={config.thresholdLineOpacity}
-				showLegend={config.showLegend}
-				showBorder={config.showBorder}
+				showLegend={false}
+				showBorder={false}
 				showActivation={config.showActivation}
 				activationColor={config.activationColor}
+				showSensorLabels={config.showSensorLabels}
 				sensorLabelColor={config.sensorLabelColor}
 			/>
 		</div>

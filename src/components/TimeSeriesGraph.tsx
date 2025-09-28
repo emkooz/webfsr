@@ -15,6 +15,7 @@ interface TimeSeriesGraphProps {
 	showBorder: boolean;
 	showActivation: boolean;
 	activationColor: string;
+	showSensorLabels?: boolean;
 	sensorLabelColor?: string;
 }
 
@@ -32,6 +33,7 @@ const TimeSeriesGraph = ({
 	showBorder,
 	showActivation,
 	activationColor,
+	showSensorLabels = true,
 	sensorLabelColor = "rgba(0, 0, 0, 0.7)",
 }: TimeSeriesGraphProps) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,6 +41,21 @@ const TimeSeriesGraph = ({
 	const timeSeriesDataRef = useRef<Array<Array<{ value: number; timestamp: number }>>>([]);
 	const requestIdRef = useRef<number | null>(null);
 	const numSensors = useSensorCount();
+
+	const parseColor = (c: string): { r: number; g: number; b: number; a: number } => {
+		if (!c) return { r: 0, g: 0, b: 0, a: 1 };
+		if (c.startsWith("rgba")) {
+			const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+			if (m) return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a: m[4] ? Number(m[4]) : 1 };
+		}
+		if (c.startsWith("#")) {
+			const r = Number.parseInt(c.slice(1, 3), 16);
+			const g = Number.parseInt(c.slice(3, 5), 16);
+			const b = Number.parseInt(c.slice(5, 7), 16);
+			return { r, g, b, a: 1 };
+		}
+		return { r: 0, g: 0, b: 0, a: 1 };
+	};
 
 	// Update time series data when new values come in
 	useEffect(() => {
@@ -164,8 +181,14 @@ const TimeSeriesGraph = ({
 				ctx.textAlign = "left";
 				ctx.fillText("0", 5, y + rowHeight - 5);
 				ctx.fillText(maxSensorVal.toString(), 5, y + rowPadding + 10);
+			}
+		}
 
-				// Draw sensor label
+		// Draw sensor labels
+		if (showSensorLabels) {
+			for (let i = 0; i < sensorCount; i++) {
+				const y = i * rowHeight;
+
 				if (i < sensorLabels.length) {
 					ctx.fillStyle = sensorLabelColor;
 					ctx.font = "12px sans-serif";
@@ -191,8 +214,10 @@ const TimeSeriesGraph = ({
 			if (showThresholdLines && sensorIndex < thresholds.length) {
 				const thresholdY = rowY + effectiveRowHeight - (threshold / maxSensorVal) * effectiveRowHeight;
 
-				// Convert hex to rgba with the specified opacity
-				const thresholdColor = `rgba(${Number.parseInt(sensorColor.slice(1, 3), 16)}, ${Number.parseInt(sensorColor.slice(3, 5), 16)}, ${Number.parseInt(sensorColor.slice(5, 7), 16)}, ${thresholdLineOpacity})`;
+				// Use the same RGB as sensorColor but apply combined alpha (base color alpha * thresholdLineOpacity)
+				const { r, g, b, a } = parseColor(sensorColor);
+				const thresholdAlpha = Math.max(0, Math.min(1, a * thresholdLineOpacity));
+				const thresholdColor = `rgba(${r}, ${g}, ${b}, ${thresholdAlpha})`;
 
 				ctx.beginPath();
 				ctx.moveTo(0, thresholdY);
@@ -201,8 +226,8 @@ const TimeSeriesGraph = ({
 				ctx.lineWidth = 2;
 				ctx.stroke();
 
-				// Draw threshold value
-				ctx.fillStyle = sensorColor;
+				// Draw threshold value number using the sensor color (opaque)
+				ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 1)`;
 				ctx.font = "10px sans-serif";
 				ctx.textAlign = "right";
 				ctx.fillText(threshold.toString(), width - 10, thresholdY - 3);

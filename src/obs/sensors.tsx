@@ -10,8 +10,6 @@ type ObsPayload = ObsBroadcastPayload & {
 
 // Default configuration values
 const DEFAULT_CONFIG = {
-	layout: "horizontal", // "vertical" | "horizontal" | "grid"
-	maxSensorsPerRow: 4,
 	sensorColors: ["#3a7da3", "#d4607c", "#8670d4", "#d49b20", "#459ea0", "#d45478"],
 	thresholdLineOpacity: 0.7,
 	showThresholdText: true,
@@ -27,6 +25,7 @@ const DEFAULT_CONFIG = {
 	visibleSensors: "", // Comma-separated list of sensor indices (e.g., "0,2,4" or "all")
 	sensorBackgroundColor: "white",
 	sensorLabelColor: "rgba(255, 255, 255, 0.9)",
+	sensorLabels: [],
 };
 
 function getQueryPassword() {
@@ -38,9 +37,13 @@ function parseQueryConfig() {
 	const params = new URLSearchParams(window.location.search);
 
 	return {
-		layout: (params.get("layout") as "vertical" | "horizontal" | "grid") || DEFAULT_CONFIG.layout,
-		maxSensorsPerRow: Number(params.get("maxPerRow")) || DEFAULT_CONFIG.maxSensorsPerRow,
-		sensorColors: params.get("colors")?.split(",") || [...DEFAULT_CONFIG.sensorColors],
+		sensorColors: (() => {
+			const raw = params.get("colors");
+			if (!raw) return [...DEFAULT_CONFIG.sensorColors];
+			// Support rgba colors that contain commas by using semicolon-separated values
+			const parts = raw.includes(";") ? raw.split(";") : raw.split(",");
+			return parts.map((p) => decodeURIComponent(p));
+		})(),
 		thresholdLineOpacity: Number(params.get("thresholdOpacity")) || DEFAULT_CONFIG.thresholdLineOpacity,
 		showThresholdText: params.get("showThreshold") !== "false" ? DEFAULT_CONFIG.showThresholdText : false,
 		showValueText: params.get("showValue") !== "false" ? DEFAULT_CONFIG.showValueText : false,
@@ -55,6 +58,12 @@ function parseQueryConfig() {
 		visibleSensors: params.get("sensors") || DEFAULT_CONFIG.visibleSensors,
 		sensorBackgroundColor: params.get("sensorBg") || DEFAULT_CONFIG.sensorBackgroundColor,
 		sensorLabelColor: params.get("labelColor") || DEFAULT_CONFIG.sensorLabelColor,
+		sensorLabels: (() => {
+			const raw = params.get("sensorLabels");
+			if (!raw) return [...DEFAULT_CONFIG.sensorLabels];
+			// Support labels that might contain commas by using semicolon-separated values
+			return raw.split(";").map((label) => decodeURIComponent(label));
+		})(),
 	};
 }
 
@@ -80,9 +89,15 @@ function SensorsOBSComponent() {
 
 				if (payload.thresholds && Array.isArray(payload.thresholds)) setThresholds(payload.thresholds);
 
-				// Generate default sensor labels if we don't have them
+				// Generate sensor labels if we don't have them
 				if (sensorLabels.length === 0 && payload.values) {
-					const newLabels = Array.from({ length: payload.values.length }, (_, i) => `Sensor ${i + 1}`);
+					const numSensors = payload.values.length;
+					const configuredLabels = config.sensorLabels.length > 0 ? config.sensorLabels : [];
+
+					const newLabels = Array.from({ length: numSensors }, (_, i) => {
+						return configuredLabels[i] || `Sensor ${i + 1}`;
+					});
+
 					setSensorLabels(newLabels);
 				}
 			} catch {
@@ -150,19 +165,7 @@ function SensorsOBSComponent() {
 	));
 
 	const renderSensors = () => {
-		switch (config.layout) {
-			case "horizontal":
-				return <div className="flex gap-4 h-full items-center justify-center">{sensorBars}</div>;
-			case "grid": {
-				return (
-					<div className="grid gap-4 h-full" style={{ gridTemplateColumns: `repeat(${config.maxSensorsPerRow}, 1fr)` }}>
-						{sensorBars}
-					</div>
-				);
-			}
-			default: // vertical
-				return <div className="flex flex-col gap-4 h-full justify-center">{sensorBars}</div>;
-		}
+		return <div className="flex gap-4 h-full items-center justify-center">{sensorBars}</div>;
 	};
 
 	return (

@@ -18,6 +18,16 @@ export const useOBS = () => {
 	const [isConnecting, setIsConnecting] = useState<boolean>(false);
 	const [error, setError] = useState<string | null>(null);
 
+	// Auto-reconnect state
+	const [autoConnect, setAutoConnect] = useState<boolean>(false);
+	const autoConnectRef = useRef<boolean>(false);
+	const [nextRetryInMs, setNextRetryInMs] = useState<number>(0);
+	const backoffAttemptRef = useRef<number>(0);
+	const reconnectTimerRef = useRef<number | null>(null);
+	const countdownTimerRef = useRef<number | null>(null);
+	const lastPasswordRef = useRef<string>("");
+	const lastUrlRef = useRef<string>("ws://127.0.0.1:4455");
+
 	const getObs = () => {
 		if (!obsRef.current) obsRef.current = new OBSWebSocket();
 		return obsRef.current;
@@ -31,11 +41,22 @@ export const useOBS = () => {
 		try {
 			setIsConnecting(true);
 			setError(null);
+			lastPasswordRef.current = password;
+			lastUrlRef.current = url;
 
-			// Attach core listeners once
 			if (!wiredRef.current) {
-				obs.on("ConnectionClosed", () => setIsConnected(false));
-				obs.on("Identified", () => setIsConnected(true));
+				obs.on("ConnectionClosed", () => {
+					setIsConnected(false);
+					if (autoConnectRef.current && lastPasswordRef.current) scheduleReconnect();
+				});
+
+				obs.on("Identified", () => {
+					setIsConnected(true);
+					backoffAttemptRef.current = 0;
+					clearReconnectTimers();
+					setNextRetryInMs(0);
+				});
+
 				wiredRef.current = true;
 			}
 
@@ -48,6 +69,7 @@ export const useOBS = () => {
 			setIsConnected(false);
 			const message = err instanceof Error ? err.message : String(err);
 			setError(message);
+			if (autoConnectRef.current && lastPasswordRef.current) scheduleReconnect();
 			return false;
 		}
 	};
@@ -61,6 +83,7 @@ export const useOBS = () => {
 			// ignore
 		} finally {
 			setIsConnected(false);
+			clearReconnectTimers();
 		}
 	};
 
@@ -98,6 +121,68 @@ export const useOBS = () => {
 		};
 	};
 
+	const clearReconnectTimers = () => {
+		if (reconnectTimerRef.current) {
+			window.clearTimeout(reconnectTimerRef.current);
+			reconnectTimerRef.current = null;
+		}
+
+		if (countdownTimerRef.current) {
+			window.clearInterval(countdownTimerRef.current);
+			countdownTimerRef.current = null;
+		}
+	};
+
+	const scheduleReconnect = () => {
+		clearReconnectTimers();
+
+		// Exponential backoff capped at ~15s
+		const base = 1000;
+		const attempt = backoffAttemptRef.current;
+		const delay = Math.min(15000, base * 2 ** attempt);
+		setNextRetryInMs(delay);
+
+		const start = Date.now();
+		countdownTimerRef.current = window.setInterval(() => {
+			const elapsed = Date.now() - start;
+			const remaining = Math.max(0, delay - elapsed);
+			setNextRetryInMs(remaining);
+			if (remaining <= 0 && countdownTimerRef.current) {
+				window.clearInterval(countdownTimerRef.current);
+				countdownTimerRef.current = null;
+			}
+		}, 1000);
+
+		reconnectTimerRef.current = window.setTimeout(() => {
+			if (!autoConnectRef.current || !lastPasswordRef.current) return;
+			backoffAttemptRef.current = Math.min(10, backoffAttemptRef.current + 1);
+			void connect(lastPasswordRef.current, lastUrlRef.current);
+		}, delay);
+	};
+
+	const setAutoConnectEnabled = (enabled: boolean, password?: string, url?: string) => {
+		setAutoConnect(enabled);
+		autoConnectRef.current = enabled;
+
+		if (password) lastPasswordRef.current = password;
+		if (url) lastUrlRef.current = url;
+
+		if (!enabled) {
+			clearReconnectTimers();
+			return;
+		}
+
+		if (!isConnected && !isConnecting && lastPasswordRef.current) {
+			backoffAttemptRef.current = 0;
+			clearReconnectTimers();
+			void connect(lastPasswordRef.current, lastUrlRef.current);
+		}
+	};
+
+	useEffect(() => {
+		autoConnectRef.current = autoConnect;
+	}, [autoConnect]);
+
 	useEffect(() => {
 		return () => {
 			if (obsRef.current) {
@@ -108,6 +193,8 @@ export const useOBS = () => {
 				}
 				obsRef.current = null;
 			}
+
+			clearReconnectTimers();
 		};
 	}, []);
 
@@ -119,5 +206,8 @@ export const useOBS = () => {
 		isConnected,
 		isConnecting,
 		error,
+		autoConnect,
+		nextRetryInMs,
+		setAutoConnectEnabled,
 	};
 };

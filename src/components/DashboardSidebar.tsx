@@ -2,13 +2,14 @@ import { Check, ChevronDown, ChevronRight, ChevronsUpDown, Pencil, Plus, Trash2,
 import { type ChangeEvent, type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/components/ui/collapsible";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { Slider } from "~/components/ui/slider";
-import { Switch } from "~/components/ui/switch";
 import { useProfileManager } from "~/lib/useProfileManager";
 import { cn } from "~/lib/utils";
 import { useBarVisualizationSettings, useColorSettings, useGraphVisualizationSettings } from "~/store/settingsStore";
@@ -134,7 +135,7 @@ export function VisualSettingsSection({
 						<div className="flex flex-col gap-2">
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show threshold value</span>
-								<Switch
+								<Checkbox
 									checked={barSettings.showBarThresholdText}
 									onCheckedChange={barSettings.setShowBarThresholdText}
 									aria-label="Toggle threshold value display"
@@ -142,7 +143,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show sensor value</span>
-								<Switch
+								<Checkbox
 									checked={barSettings.showBarValueText}
 									onCheckedChange={barSettings.setShowBarValueText}
 									aria-label="Toggle sensor value display"
@@ -150,7 +151,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Use threshold activation color</span>
-								<Switch
+								<Checkbox
 									checked={barSettings.useThresholdColor}
 									onCheckedChange={barSettings.setUseThresholdColor}
 									aria-label="Toggle threshold color activation"
@@ -180,7 +181,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Use single color for all bars</span>
-								<Switch
+								<Checkbox
 									checked={barSettings.useSingleColor}
 									onCheckedChange={barSettings.setUseSingleColor}
 									aria-label="Toggle single color for all bars"
@@ -210,7 +211,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Bar gradient</span>
-								<Switch
+								<Checkbox
 									checked={barSettings.useBarGradient}
 									onCheckedChange={barSettings.setUseBarGradient}
 									aria-label="Toggle bar gradient"
@@ -242,7 +243,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show grid lines</span>
-								<Switch
+								<Checkbox
 									checked={graphSettings.showGridLines}
 									onCheckedChange={graphSettings.setShowGridLines}
 									aria-label="Toggle grid lines display"
@@ -250,7 +251,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show threshold lines</span>
-								<Switch
+								<Checkbox
 									checked={graphSettings.showThresholdLines}
 									onCheckedChange={graphSettings.setShowThresholdLines}
 									aria-label="Toggle threshold lines display"
@@ -269,7 +270,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show legend</span>
-								<Switch
+								<Checkbox
 									checked={graphSettings.showLegend}
 									onCheckedChange={graphSettings.setShowLegend}
 									aria-label="Toggle legend display"
@@ -277,7 +278,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show border</span>
-								<Switch
+								<Checkbox
 									checked={graphSettings.showGraphBorder}
 									onCheckedChange={graphSettings.setShowGraphBorder}
 									aria-label="Toggle graph border display"
@@ -285,7 +286,7 @@ export function VisualSettingsSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show sensor activation</span>
-								<Switch
+								<Checkbox
 									checked={graphSettings.showGraphActivation}
 									onCheckedChange={graphSettings.setShowGraphActivation}
 									aria-label="Toggle graph activation display"
@@ -601,7 +602,7 @@ export function GeneralSettingsSection({ generalSettings }: GeneralSettingsSecti
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center justify-between">
 						<span className="text-xs">Lock thresholds</span>
-						<Switch
+						<Checkbox
 							checked={generalSettings.lockThresholds}
 							onCheckedChange={generalSettings.setLockThresholds}
 							aria-label="Toggle threshold locking"
@@ -609,7 +610,7 @@ export function GeneralSettingsSection({ generalSettings }: GeneralSettingsSecti
 					</div>
 					<div className="flex items-center justify-between">
 						<span className="text-xs">Unthrottled polling</span>
-						<Switch
+						<Checkbox
 							checked={generalSettings.useUnthrottledPolling}
 							onCheckedChange={generalSettings.setUseUnthrottledPolling}
 							aria-label="Toggle unthrottled polling"
@@ -690,7 +691,7 @@ export function HeartRateMonitorSection({
 
 					<div className="flex items-center justify-between">
 						<span className="text-xs">Show heartrate monitor</span>
-						<Switch
+						<Checkbox
 							checked={heartrateSettings.showHeartrateMonitor}
 							onCheckedChange={heartrateSettings.setShowHeartrateMonitor}
 							aria-label="Toggle heartrate monitor display"
@@ -701,7 +702,7 @@ export function HeartRateMonitorSection({
 						<>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Animate heartbeat</span>
-								<Switch
+								<Checkbox
 									checked={heartrateSettings.animateHeartbeat}
 									onCheckedChange={heartrateSettings.setAnimateHeartbeat}
 									aria-label="Toggle heart animation"
@@ -709,7 +710,7 @@ export function HeartRateMonitorSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Vertical align content</span>
-								<Switch
+								<Checkbox
 									checked={heartrateSettings.verticalAlignHeartrate}
 									onCheckedChange={heartrateSettings.setVerticalAlignHeartrate}
 									aria-label="Toggle vertical alignment of heartrate content"
@@ -717,7 +718,7 @@ export function HeartRateMonitorSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Fill heart icon</span>
-								<Switch
+								<Checkbox
 									checked={heartrateSettings.fillHeartIcon}
 									onCheckedChange={heartrateSettings.setFillHeartIcon}
 									aria-label="Toggle filled heart icon"
@@ -725,7 +726,7 @@ export function HeartRateMonitorSection({
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs">Show BPM text</span>
-								<Switch
+								<Checkbox
 									checked={heartrateSettings.showBpmText}
 									onCheckedChange={heartrateSettings.setShowBpmText}
 									aria-label="Toggle BPM label display"
@@ -746,6 +747,10 @@ export type OBSSectionProps = {
 	obsSendRate: number;
 	setObsSendRate: (v: number) => void;
 	onToggle: (pwd: string) => void;
+	onCreateComponent: () => void;
+	autoConnectEnabled: boolean;
+	nextRetryInMs: number;
+	onToggleAutoConnect?: (checked: boolean, pwd: string) => void;
 };
 
 export function OBSSection({
@@ -755,10 +760,15 @@ export function OBSSection({
 	obsSendRate,
 	setObsSendRate,
 	onToggle,
+	onCreateComponent,
+	autoConnectEnabled,
+	nextRetryInMs,
+	onToggleAutoConnect,
 }: OBSSectionProps) {
 	const [isOpen, setIsOpen] = useState<boolean>(true);
 	const { activeProfile, activeProfileId, updateProfile } = useProfileManager();
 	const [password, setPassword] = useState<string>(activeProfile?.obsPassword ?? "");
+	const savedAuto = Boolean(activeProfile?.obsAutoConnect);
 
 	useEffect(() => {
 		setPassword(activeProfile?.obsPassword ?? "");
@@ -768,6 +778,10 @@ export function OBSSection({
 		const pwd = e.target.value;
 		setPassword(pwd);
 		if (activeProfileId !== null) updateProfile(activeProfileId, { obsPassword: pwd });
+	};
+
+	const onToggleAuto = (checked: boolean) => {
+		if (activeProfileId !== null) updateProfile(activeProfileId, { obsAutoConnect: checked });
 	};
 
 	return (
@@ -783,7 +797,13 @@ export function OBSSection({
 						<span
 							className={`text-xs font-medium ${obsConnected ? "text-green-600" : obsConnecting ? "text-amber-600" : "text-destructive"}`}
 						>
-							{obsConnecting ? "Connecting…" : obsConnected ? "Connected" : "Disconnected"}
+							{obsConnecting
+								? "Connecting…"
+								: obsConnected
+									? "Connected"
+									: autoConnectEnabled && nextRetryInMs > 0
+										? `Disconnected (retry in ${Math.ceil(nextRetryInMs / 1000)}s)`
+										: "Disconnected"}
 						</span>
 					</div>
 					<div className="flex flex-col gap-1">
@@ -797,6 +817,20 @@ export function OBSSection({
 							value={password}
 							onChange={onPwdChange}
 							className="h-7 px-2 py-1"
+						/>
+					</div>
+					<div className="flex items-center justify-between">
+						<Label htmlFor="obs-auto" className="text-xs">
+							Auto connect
+						</Label>
+						<Checkbox
+							id="obs-auto"
+							checked={savedAuto}
+							onCheckedChange={(v) => {
+								const checked = Boolean(v);
+								onToggleAuto(checked);
+								if (onToggleAutoConnect) onToggleAutoConnect(checked, password);
+							}}
 						/>
 					</div>
 					<div className="flex flex-col gap-1">
@@ -815,6 +849,10 @@ export function OBSSection({
 					</div>
 					<Button onClick={() => onToggle(password)} className="w-full" disabled={!password}>
 						{obsConnected ? "Disconnect OBS" : "Connect OBS"}
+					</Button>
+					<Button onClick={onCreateComponent} className="w-full" variant="outline">
+						<Pencil className="size-4 mr-2" />
+						Create component
 					</Button>
 					{obsError && <div className="text-xs text-destructive">{obsError}</div>}
 				</div>

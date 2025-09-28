@@ -41,6 +41,7 @@ export interface ProfileData {
 	useUnthrottledPolling: boolean;
 	obsPassword?: string;
 	obsSendRate?: number;
+	obsAutoConnect?: boolean;
 }
 
 export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"> = {
@@ -80,6 +81,7 @@ export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"
 	useUnthrottledPolling: false,
 	obsPassword: "",
 	obsSendRate: 60,
+	obsAutoConnect: false,
 };
 
 export function useProfileManager() {
@@ -374,6 +376,7 @@ export function useProfileManager() {
 				sensorLabels: existingProfile.sensorLabels,
 				obsPassword: (existingProfile as ProfileData).obsPassword ?? "",
 				obsSendRate: (existingProfile as ProfileData).obsSendRate ?? 30,
+				obsAutoConnect: (existingProfile as ProfileData).obsAutoConnect ?? false,
 				name,
 				id: profileId,
 				createdAt,

@@ -7,6 +7,7 @@ import {
 	ProfilesSection,
 	VisualSettingsSection,
 } from "~/components/DashboardSidebar";
+import { OBSComponentDialog } from "~/components/OBSComponentDialog";
 import SensorBar from "~/components/SensorBar";
 import TimeSeriesGraph from "~/components/TimeSeriesGraph";
 import { Button } from "~/components/ui/button";
@@ -79,6 +80,9 @@ const Dashboard = () => {
 	// Track which color picker popovers are open
 	const [openColorPickers, setOpenColorPickers] = useState<boolean[]>([]);
 
+	// OBS component dialog state
+	const [obsComponentDialogOpen, setObsComponentDialogOpen] = useState<boolean>(false);
+
 	// OBS connection state
 	const {
 		connect: connectOBS,
@@ -87,6 +91,9 @@ const Dashboard = () => {
 		isConnecting: obsConnecting,
 		error: obsError,
 		broadcast,
+		autoConnect: obsAutoConnectEnabled,
+		nextRetryInMs: obsNextRetryInMs,
+		setAutoConnectEnabled,
 	} = useOBS();
 	const lastBroadcastAtRef = useRef<number>(0);
 
@@ -272,6 +279,25 @@ const Dashboard = () => {
 		void connectOBS(pwd);
 	});
 
+	// Enable auto-connect per profile
+	useEffect(() => {
+		if (!activeProfile) return;
+		const shouldAuto = Boolean((activeProfile as { obsAutoConnect?: boolean }).obsAutoConnect);
+		const pwd = activeProfile.obsPassword || "";
+
+		// only enable if password present
+		setAutoConnectEnabled(shouldAuto && !!pwd, pwd);
+
+		// If auto-connect is enabled at page load and we're idle, schedule immediately
+		if (shouldAuto && pwd && !obsConnected && !obsConnecting) {
+			setAutoConnectEnabled(true, pwd);
+		}
+	}, [activeProfile?.id, activeProfile?.obsPassword, (activeProfile as { obsAutoConnect?: boolean })?.obsAutoConnect]);
+
+	const onCreateComponent = useStableCallback(() => {
+		setObsComponentDialogOpen(true);
+	});
+
 	const sensorBars = Array.from({ length: numSensors }, (_, index) => (
 		<SensorBar
 			// biome-ignore lint/suspicious/noArrayIndexKey:
@@ -354,6 +380,13 @@ const Dashboard = () => {
 								obsSendRate={generalSettings.obsSendRate}
 								setObsSendRate={generalSettings.setObsSendRate}
 								onToggle={onObsToggleStable}
+								onCreateComponent={onCreateComponent}
+								autoConnectEnabled={obsAutoConnectEnabled}
+								nextRetryInMs={obsNextRetryInMs}
+								onToggleAutoConnect={(checked, pwd) => {
+									if (!pwd) return;
+									setAutoConnectEnabled(checked && !!pwd, pwd);
+								}}
 							/>
 
 							<GeneralSettingsSection generalSettings={generalSettings} />
@@ -465,6 +498,8 @@ const Dashboard = () => {
 					</div>
 				)}
 			</div>
+
+			<OBSComponentDialog open={obsComponentDialogOpen} onOpenChange={setObsComponentDialogOpen} />
 		</main>
 	);
 };

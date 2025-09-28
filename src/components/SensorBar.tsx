@@ -193,11 +193,24 @@ const SensorBar = ({
 
 		if (useGradient) {
 			const grad = ctx.createLinearGradient(0, 0, 0, height);
-			grad.addColorStop(0, activeColor);
-			grad.addColorStop(
-				1,
-				`rgba(${Number.parseInt(activeColor.slice(1, 3), 16)}, ${Number.parseInt(activeColor.slice(3, 5), 16)}, ${Number.parseInt(activeColor.slice(5, 7), 16)}, 0.3)`,
-			);
+			// Support both hex and rgba input colors
+			const parseColor = (c: string): { r: number; g: number; b: number; a: number } => {
+				if (c.startsWith("rgba")) {
+					const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+					if (m) return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a: m[4] ? Number(m[4]) : 1 };
+				}
+				if (c.startsWith("#")) {
+					const r = Number.parseInt(c.slice(1, 3), 16);
+					const g = Number.parseInt(c.slice(3, 5), 16);
+					const b = Number.parseInt(c.slice(5, 7), 16);
+					return { r, g, b, a: 1 };
+				}
+				return { r: 0, g: 0, b: 0, a: 1 };
+			};
+
+			const { r, g, b, a } = parseColor(activeColor);
+			grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${a})`);
+			grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, a * 0.3))})`);
 			ctx.fillStyle = grad;
 		} else {
 			ctx.fillStyle = activeColor;
@@ -266,7 +279,9 @@ const SensorBar = ({
 					{label}
 				</div>
 			)}
-			<div className="relative flex-1 w-full flex flex-col mb-2 canvas-container">
+			<div
+				className={`relative flex-1 w-full flex flex-col ${!hideControls ? "mb-2" : ""} canvas-container min-h-[200px]`}
+			>
 				<canvas
 					ref={canvasRef}
 					className={`border border-border rounded w-full h-full ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
