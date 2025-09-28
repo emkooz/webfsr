@@ -1,5 +1,5 @@
 import { Check, ChevronDown, ChevronRight, ChevronsUpDown, Pencil, Plus, Trash2, Undo } from "lucide-react";
-import { type ChangeEvent, type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type Dispatch, type SetStateAction, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -751,6 +751,8 @@ export type OBSSectionProps = {
 	autoConnectEnabled: boolean;
 	nextRetryInMs: number;
 	onToggleAutoConnect?: (checked: boolean, pwd: string) => void;
+	password: string;
+	onPasswordChange: (pwd: string) => void;
 };
 
 export function OBSSection({
@@ -764,19 +766,16 @@ export function OBSSection({
 	autoConnectEnabled,
 	nextRetryInMs,
 	onToggleAutoConnect,
+	password,
+	onPasswordChange,
 }: OBSSectionProps) {
 	const [isOpen, setIsOpen] = useState<boolean>(true);
 	const { activeProfile, activeProfileId, updateProfile } = useProfileManager();
-	const [password, setPassword] = useState<string>(activeProfile?.obsPassword ?? "");
 	const savedAuto = Boolean(activeProfile?.obsAutoConnect);
-
-	useEffect(() => {
-		setPassword(activeProfile?.obsPassword ?? "");
-	}, [activeProfile?.obsPassword]);
 
 	const onPwdChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const pwd = e.target.value;
-		setPassword(pwd);
+		onPasswordChange(pwd);
 		if (activeProfileId !== null) updateProfile(activeProfileId, { obsPassword: pwd });
 	};
 

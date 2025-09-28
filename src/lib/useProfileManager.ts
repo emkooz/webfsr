@@ -81,7 +81,7 @@ export const DEFAULT_PROFILE: Omit<ProfileData, "id" | "createdAt" | "updatedAt"
 	useUnthrottledPolling: false,
 	obsPassword: "",
 	obsSendRate: 60,
-	obsAutoConnect: false,
+	obsAutoConnect: true,
 };
 
 export function useProfileManager() {

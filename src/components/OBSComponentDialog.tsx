@@ -25,6 +25,7 @@ const SENSOR_COLOR_KEYS = ["sensor-0", "sensor-1", "sensor-2", "sensor-3", "sens
 export type OBSComponentDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	password?: string;
 };
 
 type ComponentType = "graph" | "sensors" | "heartrate";
@@ -155,7 +156,7 @@ const DEFAULT_CONFIGS = {
 	} as HeartrateConfig,
 };
 
-export function OBSComponentDialog({ open, onOpenChange }: OBSComponentDialogProps) {
+export function OBSComponentDialog({ open, onOpenChange, password: passwordProp }: OBSComponentDialogProps) {
 	const { activeProfile } = useProfileManager();
 	const [selectedComponent, setSelectedComponent] = useState<ComponentType>("graph");
 	const [graphConfig, setGraphConfig] = useState<GraphConfig>(DEFAULT_CONFIGS.graph);
@@ -265,7 +266,7 @@ export function OBSComponentDialog({ open, onOpenChange }: OBSComponentDialogPro
 
 	useEffect(() => {
 		generateUrl();
-	}, [config, selectedComponent, activeProfile?.obsPassword]);
+	}, [config, selectedComponent, passwordProp, open]);
 
 	const isGraphConfig = (c: ComponentConfig): c is GraphConfig =>
 		c != null && typeof (c as GraphConfig).timeWindow === "number" && Array.isArray((c as GraphConfig).sensorColors);
@@ -274,9 +275,9 @@ export function OBSComponentDialog({ open, onOpenChange }: OBSComponentDialogPro
 
 	const generateUrl = () => {
 		const baseUrl = `${window.location.origin}/obs/${selectedComponent}/`;
-		const password = activeProfile?.obsPassword || "YOUR_OBS_PASSWORD_HERE";
+		const pwd = (passwordProp ?? activeProfile?.obsPassword) || "YOUR_OBS_PASSWORD_HERE";
 
-		const params = new URLSearchParams({ pwd: password });
+		const params = new URLSearchParams({ pwd: pwd });
 
 		// Add component-specific parameters
 		if (selectedComponent === "graph" && isGraphConfig(config)) {

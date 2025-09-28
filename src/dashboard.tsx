@@ -82,6 +82,11 @@ const Dashboard = () => {
 
 	// OBS component dialog state
 	const [obsComponentDialogOpen, setObsComponentDialogOpen] = useState<boolean>(false);
+	const [obsPassword, setobsPassword] = useState<string>(activeProfile?.obsPassword ?? "");
+
+	useEffect(() => {
+		setobsPassword(activeProfile?.obsPassword ?? "");
+	}, [activeProfile?.obsPassword]);
 
 	// OBS connection state
 	const {
@@ -387,6 +392,8 @@ const Dashboard = () => {
 									if (!pwd) return;
 									setAutoConnectEnabled(checked && !!pwd, pwd);
 								}}
+								password={obsPassword}
+								onPasswordChange={setobsPassword}
 							/>
 
 							<GeneralSettingsSection generalSettings={generalSettings} />
@@ -499,7 +506,11 @@ const Dashboard = () => {
 				)}
 			</div>
 
-			<OBSComponentDialog open={obsComponentDialogOpen} onOpenChange={setObsComponentDialogOpen} />
+			<OBSComponentDialog
+				open={obsComponentDialogOpen}
+				onOpenChange={setObsComponentDialogOpen}
+				password={obsPassword}
+			/>
 		</main>
 	);
 };
