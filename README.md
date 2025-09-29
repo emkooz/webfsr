@@ -28,6 +28,9 @@ To install it as a PWA, find a button in the top-right corner of your browser wh
 
 ## OBS Browser Source Components
 
+[!NOTE]
+Minimizing or occluding the page will likely cause the websocket connection to be heavily throttled. Until a good mitigation for this is found, bring the tab/PWA into focus, and then open ITG without focusing any other window.
+
 Each visualization can be loaded in a separate route to display in an OBS Browser Source. This allows for high quality stream elements without resorting to using Window Capture.
 
 This feature works by using the websocket server built into OBS. Each route connects as a client, and the main page sends data to each of the component pages through obs-websocket.
