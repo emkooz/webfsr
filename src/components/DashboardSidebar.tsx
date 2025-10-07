@@ -10,7 +10,7 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { Slider } from "~/components/ui/slider";
-import { useProfileManager } from "~/lib/useProfileManager";
+import type { ProfileData } from "~/lib/useProfileManager";
 import { cn } from "~/lib/utils";
 import { useBarVisualizationSettings, useColorSettings, useGraphVisualizationSettings } from "~/store/settingsStore";
 
@@ -325,20 +325,31 @@ export function VisualSettingsSection({
 	);
 }
 
-export function ProfilesSection() {
-	const {
-		profiles,
-		activeProfile,
-		activeProfileId,
-		isLoading: isProfileLoading,
-		error: profileError,
-		createProfile,
-		deleteProfile,
-		updateProfile,
-		setActiveProfileById,
-		resetProfileToDefaults,
-	} = useProfileManager();
+export type ProfilesSectionProps = {
+	profiles: ProfileData[];
+	activeProfile: ProfileData | null;
+	activeProfileId: number | null;
+	isProfileLoading: boolean;
+	profileError: string | null;
+	createProfile: (name: string, baseProfileId?: number) => Promise<ProfileData | null>;
+	deleteProfile: (id: number) => Promise<void>;
+	updateProfile: (id: number, updates: Partial<Omit<ProfileData, "id" | "createdAt" | "updatedAt">>) => Promise<void>;
+	setActiveProfileById: (id: number) => Promise<void>;
+	resetProfileToDefaults: (id: number) => Promise<ProfileData | null>;
+};
 
+export function ProfilesSection({
+	profiles,
+	activeProfile,
+	activeProfileId,
+	isProfileLoading,
+	profileError,
+	createProfile,
+	deleteProfile,
+	updateProfile,
+	setActiveProfileById,
+	resetProfileToDefaults,
+}: ProfilesSectionProps) {
 	const [isOpen, setIsOpen] = useState(true);
 	const [profileComboboxOpen, setProfileComboboxOpen] = useState(false);
 	const [newProfileDialogOpen, setNewProfileDialogOpen] = useState(false);
@@ -753,6 +764,9 @@ export type OBSSectionProps = {
 	onToggleAutoConnect?: (checked: boolean, pwd: string) => void;
 	password: string;
 	onPasswordChange: (pwd: string) => void;
+	activeProfile: ProfileData | null;
+	activeProfileId: number | null;
+	updateProfile: (id: number, updates: Partial<Omit<ProfileData, "id" | "createdAt" | "updatedAt">>) => Promise<void>;
 };
 
 export function OBSSection({
@@ -768,9 +782,11 @@ export function OBSSection({
 	onToggleAutoConnect,
 	password,
 	onPasswordChange,
+	activeProfile,
+	activeProfileId,
+	updateProfile,
 }: OBSSectionProps) {
 	const [isOpen, setIsOpen] = useState<boolean>(true);
-	const { activeProfile, activeProfileId, updateProfile } = useProfileManager();
 	const savedAuto = Boolean(activeProfile?.obsAutoConnect);
 
 	const onPwdChange = (e: ChangeEvent<HTMLInputElement>) => {

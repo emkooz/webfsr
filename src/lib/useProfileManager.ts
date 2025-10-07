@@ -145,28 +145,45 @@ export function useProfileManager() {
 				setDb(database);
 
 				// Load all profiles
-				const allProfiles = await database.getAll(PROFILES_STORE);
+				let allProfiles = await database.getAll(PROFILES_STORE);
 				setProfiles(allProfiles as ProfileData[]);
 
 				const lastActiveProfileSetting = await database.getFromIndex(SETTINGS_STORE, "key", "lastActiveProfileId");
 
 				// If we don't have any profiles or a last active profile, create a default profile
 				if (allProfiles.length === 0) {
-					const timestamp = Date.now();
-					const defaultProfileWithTimestamps = {
-						...DEFAULT_PROFILE,
-						createdAt: timestamp,
-						updatedAt: timestamp,
-					};
+					let shouldCreateDefault = false;
 
-					const id = await database.add(PROFILES_STORE, defaultProfileWithTimestamps);
-					const newProfile = { ...defaultProfileWithTimestamps, id: id as number };
+					try {
+						// Attempt to mark bootstrap
+						await database.add(SETTINGS_STORE, { key: "bootstrapped", value: Date.now() });
+						shouldCreateDefault = true;
+					} catch {
+						shouldCreateDefault = false;
+					}
 
-					setProfiles([newProfile]);
-					setActiveProfileId(id as number);
-					setActiveProfile(newProfile);
+					if (shouldCreateDefault) {
+						const timestamp = Date.now();
+						const defaultProfileWithTimestamps = {
+							...DEFAULT_PROFILE,
+							createdAt: timestamp,
+							updatedAt: timestamp,
+						};
 
-					await saveLastActiveProfileId(database, id as number);
+						const id = await database.add(PROFILES_STORE, defaultProfileWithTimestamps);
+						const newProfile = { ...defaultProfileWithTimestamps, id: id as number };
+
+						setProfiles([newProfile]);
+						setActiveProfileId(id as number);
+						setActiveProfile(newProfile);
+
+						await saveLastActiveProfileId(database, id as number);
+					} else {
+						// Another instance is bootstrapping; refetch
+						await new Promise((r) => setTimeout(r, 50));
+						allProfiles = (await database.getAll(PROFILES_STORE)) as ProfileData[];
+						setProfiles(allProfiles);
+					}
 				} else if (lastActiveProfileSetting) {
 					// We have a last active profile, load it
 					const profileId = lastActiveProfileSetting.value as number;

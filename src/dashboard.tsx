@@ -27,7 +27,7 @@ import {
 } from "~/store/settingsStore";
 
 // annoying but needed to prevent re-renders of some components with specific callbacks
-function useStableCallback<Args extends unknown[]>(callback: (...args: Args) => void): (...args: Args) => void {
+function useStableCallback<Args extends unknown[], R>(callback: (...args: Args) => R): (...args: Args) => R {
 	const callbackRef = useRef(callback);
 	callbackRef.current = callback;
 
@@ -35,7 +35,7 @@ function useStableCallback<Args extends unknown[]>(callback: (...args: Args) => 
 		callbackRef.current(...args);
 	});
 
-	return stableCallbackRef.current;
+	return stableCallbackRef.current as (...args: Args) => R;
 }
 
 const Dashboard = () => {
@@ -72,10 +72,31 @@ const Dashboard = () => {
 		device: heartrateDevice,
 	} = useHeartrateMonitor();
 
-	const { activeProfile, activeProfileId, updateProfile, updateThresholds, updateSensorLabels } = useProfileManager();
+	const {
+		profiles,
+		activeProfile,
+		activeProfileId,
+		isLoading: isProfileLoading,
+		error: profileError,
+		createProfile,
+		deleteProfile,
+		updateProfile,
+		setActiveProfileById,
+		resetProfileToDefaults,
+		updateThresholds,
+		updateSensorLabels,
+	} = useProfileManager();
+
+	const createProfileStable = useStableCallback(createProfile);
+	const deleteProfileStable = useStableCallback(deleteProfile);
+	const updateProfileStable = useStableCallback(updateProfile);
+	const setActiveProfileByIdStable = useStableCallback(setActiveProfileById);
+	const resetProfileToDefaultsStable = useStableCallback(resetProfileToDefaults);
 
 	const [thresholds, setThresholds] = useState<number[]>([]);
 	const [sensorLabels, setSensorLabels] = useState<string[]>([]);
+	const [isSyncingProfile, setIsSyncingProfile] = useState<boolean>(false);
+	const writebackTimeoutRef = useRef<number | null>(null);
 
 	// Track which color picker popovers are open
 	const [openColorPickers, setOpenColorPickers] = useState<boolean[]>([]);
@@ -194,14 +215,34 @@ const Dashboard = () => {
 			useUnthrottledPolling: profile.useUnthrottledPolling,
 		});
 
-		// Only update thresholds and sensor labels if they exist in the profile
-		if (profile.thresholds.length > 0) setThresholds(profile.thresholds);
-		if (profile.sensorLabels.length > 0) setSensorLabels(profile.sensorLabels);
+		// Update thresholds and sensor labels
+		if (profile.thresholds.length > 0) {
+			setThresholds(profile.thresholds);
+		} else if (numSensors > 0) {
+			const defaultThresholds = Array(numSensors).fill(512);
+			setThresholds(defaultThresholds);
+			if (activeProfileId) void updateThresholds(defaultThresholds);
+		}
+
+		if (profile.sensorLabels.length > 0) {
+			setSensorLabels(profile.sensorLabels);
+		} else if (numSensors > 0) {
+			const defaultLabels = Array(numSensors)
+				.fill("")
+				.map((_, i) => `Sensor ${i + 1}`);
+			setSensorLabels(defaultLabels);
+			if (activeProfileId) void updateSensorLabels(defaultLabels);
+		}
 	};
 
 	// Load active profile data into state
 	useEffect(() => {
-		if (activeProfile) syncUIStateWithProfile(activeProfile);
+		if (!activeProfile) return;
+		setIsSyncingProfile(true);
+		syncUIStateWithProfile(activeProfile);
+		// allow state to settle before enabling write-back again
+		const id = window.setTimeout(() => setIsSyncingProfile(false), 0);
+		return () => window.clearTimeout(id);
 	}, [activeProfileId]);
 
 	const getVisualSettingsFromUIState = () => getAllSettings();
@@ -211,10 +252,30 @@ const Dashboard = () => {
 		updateProfile(activeProfileId, getVisualSettingsFromUIState());
 	};
 
-	// Update profile when visual settings change
+	// Update profile when visual settings change, avoid during initial sync and debounce
 	useEffect(() => {
-		if (activeProfileId) updateProfileVisualSettings();
-	}, [activeProfileId, colorSettings, barSettings, graphSettings, heartrateSettings, generalSettings]);
+		if (!activeProfileId || isSyncingProfile) return;
+
+		if (writebackTimeoutRef.current) {
+			window.clearTimeout(writebackTimeoutRef.current);
+		}
+
+		writebackTimeoutRef.current = window.setTimeout(() => {
+			updateProfileVisualSettings();
+		}, 100);
+
+		return () => {
+			if (writebackTimeoutRef.current) window.clearTimeout(writebackTimeoutRef.current);
+		};
+	}, [
+		activeProfileId,
+		colorSettings,
+		barSettings,
+		graphSettings,
+		heartrateSettings,
+		generalSettings,
+		isSyncingProfile,
+	]);
 
 	// Initialize defaults when number of sensors changes
 	useEffect(() => {
@@ -376,7 +437,18 @@ const Dashboard = () => {
 								</div>
 							</div>
 
-							<ProfilesSection />
+							<ProfilesSection
+								profiles={profiles}
+								activeProfile={activeProfile}
+								activeProfileId={activeProfileId}
+								isProfileLoading={isProfileLoading}
+								profileError={profileError}
+								createProfile={createProfileStable}
+								deleteProfile={deleteProfileStable}
+								updateProfile={updateProfileStable}
+								setActiveProfileById={setActiveProfileByIdStable}
+								resetProfileToDefaults={resetProfileToDefaultsStable}
+							/>
 
 							<OBSSection
 								obsConnected={obsConnected}
@@ -388,12 +460,15 @@ const Dashboard = () => {
 								onCreateComponent={onCreateComponent}
 								autoConnectEnabled={obsAutoConnectEnabled}
 								nextRetryInMs={obsNextRetryInMs}
-								onToggleAutoConnect={(checked, pwd) => {
+								onToggleAutoConnect={useStableCallback((checked: boolean, pwd: string) => {
 									if (!pwd) return;
 									setAutoConnectEnabled(checked && !!pwd, pwd);
-								}}
+								})}
 								password={obsPassword}
 								onPasswordChange={setobsPassword}
+								activeProfile={activeProfile}
+								activeProfileId={activeProfileId}
+								updateProfile={updateProfileStable}
 							/>
 
 							<GeneralSettingsSection generalSettings={generalSettings} />
