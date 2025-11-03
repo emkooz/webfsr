@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -7,6 +8,21 @@ import { VitePWA } from "vite-plugin-pwa";
 // https://vite.dev/config/
 export default defineConfig({
 	appType: "mpa",
+	define: {
+		__BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
+		__APP_NAME__: JSON.stringify("WebFSR"),
+		__REPO_URL__: JSON.stringify("https://github.com/emkooz/webfsr"),
+		__COMMIT_HASH__: JSON.stringify(
+			(() => {
+				try {
+					return execSync("git rev-parse --short HEAD").toString().trim();
+				} catch {
+					return "";
+				}
+			})(),
+		),
+		__BUILD_MODE__: JSON.stringify(process.env.NODE_ENV || "development"),
+	},
 	plugins: [
 		react({
 			babel: {

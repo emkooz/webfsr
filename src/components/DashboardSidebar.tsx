@@ -875,3 +875,68 @@ export function OBSSection({
 		</Collapsible>
 	);
 }
+
+export type AboutDialogProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+};
+
+export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
+	const buildIso = typeof __BUILD_TIMESTAMP__ !== "undefined" ? __BUILD_TIMESTAMP__ : "";
+	const buildDate = new Date(buildIso);
+	const buildLocal = buildDate ? buildDate.toLocaleString(undefined, { dateStyle: "full", timeStyle: "long" }) : "";
+
+	const appName = (typeof __APP_NAME__ !== "undefined" && __APP_NAME__) || "WebFSR";
+	const repoUrl = (typeof __REPO_URL__ !== "undefined" && __REPO_URL__) || "https://github.com/emkooz/webfsr";
+	const commit = (typeof __COMMIT_HASH__ !== "undefined" && __COMMIT_HASH__) || "";
+	const buildMode = (typeof __BUILD_MODE__ !== "undefined" && __BUILD_MODE__) || "development";
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent>
+				<DialogHeader className="items-center text-center">
+					<img src="pwa-512x512.png" alt={`${appName} icon`} className="h-16 w-16 rounded" />
+					<DialogTitle className="mt-2">{appName}</DialogTitle>
+				</DialogHeader>
+				<div className="space-y-3 text-sm">
+					<div className="flex items-center justify-between gap-4">
+						<span className="text-muted-foreground">Source</span>
+						<a
+							href={repoUrl}
+							target="_blank"
+							rel="noreferrer noopener"
+							className="font-medium underline underline-offset-4"
+						>
+							{repoUrl}
+						</a>
+					</div>
+					{commit ? (
+						<div className="flex items-center justify-between gap-4">
+							<span className="text-muted-foreground">Build commit</span>
+							<span className="font-mono">{commit}</span>
+						</div>
+					) : null}
+					{buildIso ? (
+						<>
+							<div className="flex items-center justify-between gap-4">
+								<span className="text-muted-foreground">Built (local)</span>
+								<span className="">{buildLocal}</span>
+							</div>
+							<div className="flex items-center justify-between gap-4">
+								<span className="text-muted-foreground">Built (ISO timestamp)</span>
+								<span className="">{buildIso}</span>
+							</div>
+						</>
+					) : null}
+					<div className="flex items-center justify-between gap-4">
+						<span className="text-muted-foreground">Environment</span>
+						<span className="capitalize">{buildMode}</span>
+					</div>
+				</div>
+				<DialogFooter>
+					<Button onClick={() => onOpenChange(false)}>Close</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}

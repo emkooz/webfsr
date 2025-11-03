@@ -1,6 +1,7 @@
 import { AlertTriangle, Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
+	AboutDialog,
 	GeneralSettingsSection,
 	HeartRateMonitorSection,
 	OBSSection,
@@ -104,6 +105,7 @@ const Dashboard = () => {
 	// OBS component dialog state
 	const [obsComponentDialogOpen, setObsComponentDialogOpen] = useState<boolean>(false);
 	const [obsPassword, setobsPassword] = useState<string>(activeProfile?.obsPassword ?? "");
+	const [aboutOpen, setAboutOpen] = useState<boolean>(false);
 
 	useEffect(() => {
 		setobsPassword(activeProfile?.obsPassword ?? "");
@@ -489,6 +491,21 @@ const Dashboard = () => {
 								openColorPickers={openColorPickers}
 								setOpenColorPickers={setOpenColorPickers}
 							/>
+
+							<div className="pt-1 pb-1 flex flex-col items-center gap-0.5">
+								<Button
+									variant="link"
+									size="sm"
+									className="text-xs text-muted-foreground"
+									onClick={() => setAboutOpen(true)}
+									aria-label="About WebFSR"
+								>
+									About WebFSR
+								</Button>
+								<span className="text-[10px] text-muted-foreground font-mono opacity-70 break-all text-center">
+									{__BUILD_TIMESTAMP__}
+								</span>
+							</div>
 						</div>
 					</CustomScrollArea>
 				</div>
@@ -586,6 +603,8 @@ const Dashboard = () => {
 				onOpenChange={setObsComponentDialogOpen}
 				password={obsPassword}
 			/>
+
+			<AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 		</main>
 	);
 };
