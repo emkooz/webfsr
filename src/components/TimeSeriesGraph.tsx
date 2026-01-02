@@ -17,6 +17,7 @@ interface TimeSeriesGraphProps {
 	activationColor: string;
 	showSensorLabels?: boolean;
 	sensorLabelColor?: string;
+	initialData?: Array<Array<{ value: number; timestamp: number }>>;
 }
 
 // Component for time-series graph
@@ -35,12 +36,14 @@ const TimeSeriesGraph = ({
 	activationColor,
 	showSensorLabels = true,
 	sensorLabelColor = "rgba(0, 0, 0, 0.7)",
+	initialData,
 }: TimeSeriesGraphProps) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const timeSeriesDataRef = useRef<Array<Array<{ value: number; timestamp: number }>>>([]);
 	const requestIdRef = useRef<number | null>(null);
 	const numSensors = useSensorCount();
+	const isPreview = initialData && !latestData;
 
 	const parseColor = (c: string): { r: number; g: number; b: number; a: number } => {
 		if (!c) return { r: 0, g: 0, b: 0, a: 1 };
@@ -123,8 +126,24 @@ const TimeSeriesGraph = ({
 
 		ctx.clearRect(0, 0, width, height);
 
-		const timeSeriesData = timeSeriesDataRef.current;
 		const currentTime = Date.now();
+
+		// For preview mode, regenerate timestamps relative to current time
+		let timeSeriesData: Array<Array<{ value: number; timestamp: number }>>;
+		if (isPreview && initialData) {
+			timeSeriesData = initialData.map((sensorData) => {
+				const pointCount = sensorData.length;
+				if (pointCount === 0) return [];
+				const interval = timeWindow / (pointCount - 1 || 1);
+				return sensorData.map((point, i) => ({
+					value: point.value,
+					timestamp: currentTime - timeWindow + i * interval,
+				}));
+			});
+		} else {
+			timeSeriesData = timeSeriesDataRef.current;
+		}
+
 		const sensorCount = timeSeriesData.length;
 
 		if (sensorCount === 0) {

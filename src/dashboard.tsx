@@ -1,4 +1,4 @@
-import { AlertTriangle, Heart } from "lucide-react";
+import { AlertTriangle, Heart, Unplug } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
 	AboutDialog,
@@ -37,6 +37,34 @@ function useStableCallback<Args extends unknown[], R>(callback: (...args: Args) 
 	});
 
 	return stableCallbackRef.current as (...args: Args) => R;
+}
+
+// Mock preview data for when pad is not connected
+const MOCK_SENSOR_COUNT = 6;
+const MOCK_SENSOR_VALUES = [280, 620, 445, 780, 390, 540];
+const MOCK_THRESHOLDS = [480, 550, 420, 600, 510, 470];
+const MOCK_SENSOR_LABELS = Array.from({ length: MOCK_SENSOR_COUNT }, (_, i) => `Sensor ${i + 1}`);
+
+function generateMockTimeSeriesData(timeWindow: number): Array<Array<{ value: number; timestamp: number }>> {
+	const now = Date.now();
+	const pointCount = 120;
+	const interval = timeWindow / (pointCount - 1);
+
+	return Array.from({ length: MOCK_SENSOR_COUNT }, (_, sensorIndex) => {
+		const baseValue = MOCK_SENSOR_VALUES[sensorIndex];
+		const frequency = 0.8 + sensorIndex * 0.1;
+		const amplitude = 60 + sensorIndex * 15;
+		const phaseOffset = sensorIndex * 0.8;
+
+		return Array.from({ length: pointCount }, (_, pointIndex) => {
+			const t = pointIndex / (pointCount - 1);
+			const sineComponent = Math.sin(t * Math.PI * 2 * frequency + phaseOffset) * amplitude;
+			const secondaryWave = Math.sin(t * Math.PI * 4 * frequency + phaseOffset * 2) * (amplitude * 0.2);
+			const value = Math.max(0, Math.min(1023, Math.round(baseValue + sineComponent + secondaryWave)));
+			const timestamp = now - timeWindow + pointIndex * interval;
+			return { value, timestamp };
+		});
+	});
 }
 
 const Dashboard = () => {
@@ -109,6 +137,9 @@ const Dashboard = () => {
 	const [obsComponentDialogOpen, setObsComponentDialogOpen] = useState<boolean>(false);
 	const [obsPassword, setobsPassword] = useState<string>(activeProfile?.obsPassword ?? "");
 	const [aboutOpen, setAboutOpen] = useState<boolean>(false);
+
+	// Dev only: toggle to hide disconnected overlay
+	const [devHideOverlay, setDevHideOverlay] = useState<boolean>(import.meta.env.DEV);
 
 	useEffect(() => {
 		setobsPassword(activeProfile?.obsPassword ?? "");
@@ -363,7 +394,6 @@ const Dashboard = () => {
 
 	const sensorBars = Array.from({ length: numSensors }, (_, index) => (
 		<SensorBar
-			// biome-ignore lint/suspicious/noArrayIndexKey:
 			key={`sensor-${index}`}
 			value={latestData?.values[index] || 0}
 			index={index}
@@ -483,6 +513,21 @@ const Dashboard = () => {
 								setOpenColorPickers={setOpenColorPickers}
 							/>
 
+							{/* Dev only toggles */}
+							{import.meta.env.DEV && (
+								<div className="p-3 border rounded bg-yellow-50 border-yellow-200">
+									<label className="flex items-center gap-2 text-xs cursor-pointer">
+										<input
+											type="checkbox"
+											checked={devHideOverlay}
+											onChange={(e) => setDevHideOverlay(e.target.checked)}
+											className="rounded"
+										/>
+										<span className="text-yellow-800">Hide overlay</span>
+									</label>
+								</div>
+							)}
+
 							<div className="pt-1 pb-1 flex flex-col items-center gap-0.5">
 								<Button
 									variant="link"
@@ -504,89 +549,166 @@ const Dashboard = () => {
 
 			{/* Main content */}
 			<div className="h-full overflow-hidden">
-				{!isSupported ? (
-					<div className="h-full flex items-center justify-center bg-muted/50">
-						<div className="max-w-md p-6 rounded-lg border border-destructive bg-destructive/10 text-destructive">
-							<div className="flex gap-2 items-center pb-4">
-								<AlertTriangle className="h-5 w-5" />
-								<h2 className="text-lg font-semibold">WebSerial Not Supported</h2>
-							</div>
-							<p>Your browser does not support the WebSerial API. Try a modern Chromium-based browser.</p>
-						</div>
-					</div>
-				) : (
-					<div className="h-full flex flex-col overflow-hidden p-2">
-						{latestData ? (
-							<>
-								{/* Bar Visualizations and Heartrate Section */}
-								<div className="flex gap-2 flex-shrink-0 h-[25rem]">
-									{/* Bar Visualizations */}
-									<div className="px-4 border rounded-lg bg-white shadow-sm flex-grow">
-										<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">{sensorBars}</div>
-									</div>
+				<div className="h-full flex flex-col overflow-hidden p-2 relative">
+					{latestData ? (
+						<>
+							{/* Bar Visualizations and Heartrate Section */}
+							<div className="flex gap-2 flex-shrink-0 h-[25rem]">
+								{/* Bar Visualizations */}
+								<div className="px-4 border rounded-lg bg-white shadow-sm flex-grow">
+									<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">{sensorBars}</div>
+								</div>
 
-									{/* Heartrate Tracker */}
-									{heartrateSettings.showHeartrateMonitor && (
-										<div className="p-4 border rounded-lg bg-white shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
-											<div
-												className={`flex ${heartrateSettings.verticalAlignHeartrate ? "flex-col" : "flex-row"} items-center gap-4 w-full h-full justify-center`}
-											>
-												<Heart
-													className={`${heartrateSettings.verticalAlignHeartrate ? "size-24" : "size-20"} ${connectedHR ? "text-red-500" : "text-muted-foreground"}`}
-													fill={heartrateSettings.fillHeartIcon ? (connectedHR ? "currentColor" : "none") : "none"}
-													// Again should probably be done with tailwind config lol
-													style={connectedHR && heartrateData ? heartBeatStyle : {}}
-												/>
-												{connectedHR && heartrateData ? (
-													<div className="text-center">
-														<p
-															className={`font-bold ${heartrateSettings.showBpmText ? "text-5xl" : "text-7xl"} leading-tight`}
-														>
-															{heartrateData.heartrate}
-														</p>
-														{heartrateSettings.showBpmText && <p className="text-lg text-muted-foreground mt-1">BPM</p>}
-													</div>
-												) : (
-													<p className="text-muted-foreground text-center text-lg">
-														{isBluetoothSupported
-															? connectedHR
-																? "Waiting for heartrate data..."
-																: "Heartrate monitor not connected"
-															: "WebBluetooth not supported"}
+								{/* Heartrate Tracker */}
+								{heartrateSettings.showHeartrateMonitor && (
+									<div className="p-4 border rounded-lg bg-white shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
+										<div
+											className={`flex ${heartrateSettings.verticalAlignHeartrate ? "flex-col" : "flex-row"} items-center gap-4 w-full h-full justify-center`}
+										>
+											<Heart
+												className={`${heartrateSettings.verticalAlignHeartrate ? "size-24" : "size-20"} ${connectedHR ? "text-red-500" : "text-muted-foreground"}`}
+												fill={heartrateSettings.fillHeartIcon ? (connectedHR ? "currentColor" : "none") : "none"}
+												// Again should probably be done with tailwind config lol
+												style={connectedHR && heartrateData ? heartBeatStyle : {}}
+											/>
+											{connectedHR && heartrateData ? (
+												<div className="text-center">
+													<p className={`font-bold ${heartrateSettings.showBpmText ? "text-5xl" : "text-7xl"} leading-tight`}>
+														{heartrateData.heartrate}
 													</p>
-												)}
+													{heartrateSettings.showBpmText && <p className="text-lg text-muted-foreground mt-1">BPM</p>}
+												</div>
+											) : (
+												<p className="text-muted-foreground text-center text-lg">
+													{isBluetoothSupported
+														? connectedHR
+															? "Waiting for heartrate data..."
+															: "Heartrate monitor not connected"
+														: "WebBluetooth not supported"}
+												</p>
+											)}
+										</div>
+									</div>
+								)}
+							</div>
+
+							{/* Time Series Graph */}
+							<div className="p-1 border rounded-lg bg-white shadow-sm mt-2 flex-grow min-h-0">
+								<div className="h-full">
+									<TimeSeriesGraph
+										latestData={latestData}
+										timeWindow={graphSettings.timeWindow}
+										thresholds={thresholds}
+										sensorLabels={sensorLabels}
+										sensorColors={colorSettings.sensorColors}
+										showGridLines={graphSettings.showGridLines}
+										showThresholdLines={graphSettings.showThresholdLines}
+										thresholdLineOpacity={graphSettings.thresholdLineOpacity}
+										showLegend={graphSettings.showLegend}
+										showBorder={graphSettings.showGraphBorder}
+										showActivation={graphSettings.showGraphActivation}
+										activationColor={colorSettings.graphActivationColor}
+									/>
+								</div>
+							</div>
+						</>
+					) : (
+						// Preview dashboard when not connected or not supported
+						<>
+							{/* Mock visualizations */}
+							{/* Mock Bar Visualizations and Heartrate Section */}
+							<div className="flex gap-2 flex-shrink-0 h-[25rem]">
+								{/* Mock Bar Visualizations */}
+								<div className="px-4 border rounded-lg bg-white shadow-sm flex-grow">
+									<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">
+										{Array.from({ length: MOCK_SENSOR_COUNT }, (_, index) => (
+											<SensorBar
+												key={`mock-sensor-${index}`}
+												value={MOCK_SENSOR_VALUES[index]}
+												index={index}
+												threshold={MOCK_THRESHOLDS[index]}
+												onThresholdChange={() => {}}
+												label={MOCK_SENSOR_LABELS[index]}
+												color={
+													barSettings.useSingleColor
+														? colorSettings.singleBarColor
+														: colorSettings.sensorColors[index % colorSettings.sensorColors.length] || "#ff0000"
+												}
+												showThresholdText={barSettings.showBarThresholdText}
+												showValueText={barSettings.showBarValueText}
+												thresholdColor={colorSettings.thresholdColor}
+												useThresholdColor={barSettings.useThresholdColor}
+												useGradient={barSettings.useBarGradient}
+												isLocked={true}
+											/>
+										))}
+									</div>
+								</div>
+
+								{/* Mock Heartrate Tracker */}
+								{heartrateSettings.showHeartrateMonitor && (
+									<div className="p-4 border rounded-lg bg-white shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
+										<div
+											className={`flex ${heartrateSettings.verticalAlignHeartrate ? "flex-col" : "flex-row"} items-center gap-4 w-full h-full justify-center`}
+										>
+											<Heart
+												className={`${heartrateSettings.verticalAlignHeartrate ? "size-24" : "size-20"} text-muted-foreground`}
+												fill="none"
+											/>
+											<p className="text-muted-foreground text-center text-lg">Heartrate monitor not connected</p>
+										</div>
+									</div>
+								)}
+							</div>
+
+							{/* Mock Time Series Graph */}
+							<div className="p-1 border rounded-lg bg-white shadow-sm mt-2 flex-grow min-h-0">
+								<div className="h-full">
+									<TimeSeriesGraph
+										latestData={null}
+										timeWindow={graphSettings.timeWindow}
+										thresholds={MOCK_THRESHOLDS}
+										sensorLabels={MOCK_SENSOR_LABELS}
+										sensorColors={colorSettings.sensorColors}
+										showGridLines={graphSettings.showGridLines}
+										showThresholdLines={graphSettings.showThresholdLines}
+										thresholdLineOpacity={graphSettings.thresholdLineOpacity}
+										showLegend={graphSettings.showLegend}
+										showBorder={graphSettings.showGraphBorder}
+										showActivation={graphSettings.showGraphActivation}
+										activationColor={colorSettings.graphActivationColor}
+										initialData={generateMockTimeSeriesData(graphSettings.timeWindow)}
+									/>
+								</div>
+							</div>
+
+							{/* Overlay */}
+							{!devHideOverlay && (
+								<div className="absolute inset-0 flex items-center justify-center bg-black/25 backdrop-blur-[1px]">
+									{!isSupported ? (
+										<div className="max-w-md px-8 py-5 rounded-xl border border-destructive bg-background shadow-xl flex flex-col items-center gap-2">
+											<div className="flex items-center gap-3 text-destructive">
+												<AlertTriangle className="h-5 w-5" />
+												<h2 className="text-lg font-semibold">WebSerial Not Supported</h2>
 											</div>
+											<p className="text-sm text-destructive text-center">
+												Your browser does not support the WebSerial API. Try a modern Chromium-based browser.
+											</p>
+										</div>
+									) : (
+										<div className="px-8 py-5 rounded-xl border bg-background shadow-xl flex flex-col items-center gap-2">
+											<div className="flex items-center gap-3">
+												<Unplug className="h-5 w-5 text-muted-foreground" />
+												<h2 className="text-lg font-semibold">Disconnected</h2>
+											</div>
+											<p className="text-sm text-muted-foreground">Connect your device and allow access to view values</p>
 										</div>
 									)}
 								</div>
-
-								{/* Time Series Graph */}
-								<div className="p-1 border rounded-lg bg-white shadow-sm mt-2 flex-grow min-h-0">
-									<div className="h-full">
-										<TimeSeriesGraph
-											latestData={latestData}
-											timeWindow={graphSettings.timeWindow}
-											thresholds={thresholds}
-											sensorLabels={sensorLabels}
-											sensorColors={colorSettings.sensorColors}
-											showGridLines={graphSettings.showGridLines}
-											showThresholdLines={graphSettings.showThresholdLines}
-											thresholdLineOpacity={graphSettings.thresholdLineOpacity}
-											showLegend={graphSettings.showLegend}
-											showBorder={graphSettings.showGraphBorder}
-											showActivation={graphSettings.showGraphActivation}
-											activationColor={colorSettings.graphActivationColor}
-										/>
-									</div>
-								</div>
-							</>
-						) : (
-							<div className="flex h-full items-center justify-center text-muted-foreground">
-								<p>Connect a device to see sensor data</p>
-							</div>
-						)}
-					</div>
-				)}
+							)}
+						</>
+					)}
+				</div>
 			</div>
 
 			<OBSComponentDialog open={obsComponentDialogOpen} onOpenChange={setObsComponentDialogOpen} password={obsPassword} />

@@ -82,6 +82,7 @@ export const useSerialPort = (pollingRate = 100, useUnthrottledPolling = false, 
 			setConnected(false);
 			setConnectionError("");
 			setRequestsPerSecond(0);
+			setLatestData(null);
 		} catch (error) {
 			setConnectionError(error instanceof Error ? error.message : "Failed to disconnect from device");
 		}
