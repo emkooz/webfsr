@@ -1,4 +1,4 @@
-import { AlertTriangle, Heart, Unplug } from "lucide-react";
+import { AlertTriangle, Heart, Moon, Sun, Unplug } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
 	AboutDialog,
@@ -17,6 +17,7 @@ import { useHeartrateMonitor } from "~/lib/useHeartrateMonitor";
 import { useOBS } from "~/lib/useOBS";
 import { type ProfileData, useProfileManager } from "~/lib/useProfileManager";
 import { useSerialPort } from "~/lib/useSerialPort";
+import { useTheme } from "~/lib/useTheme";
 import { useSensorCount } from "~/store/dataStore";
 import {
 	useBarVisualizationSettings,
@@ -119,11 +120,16 @@ const Dashboard = () => {
 		updateSensorLabels,
 	} = useProfileManager();
 
+	const { resolvedTheme, setTheme } = useTheme();
+
 	const createProfileStable = useStableCallback(createProfile);
 	const deleteProfileStable = useStableCallback(deleteProfile);
 	const updateProfileStable = useStableCallback(updateProfile);
 	const setActiveProfileByIdStable = useStableCallback(setActiveProfileById);
 	const resetProfileToDefaultsStable = useStableCallback(resetProfileToDefaults);
+	const toggleTheme = useStableCallback(() => {
+		setTheme(resolvedTheme === "dark" ? "light" : "dark");
+	});
 
 	const [thresholds, setThresholds] = useState<number[]>([]);
 	const [sensorLabels, setSensorLabels] = useState<string[]>([]);
@@ -411,16 +417,21 @@ const Dashboard = () => {
 			useThresholdColor={barSettings.useThresholdColor}
 			useGradient={barSettings.useBarGradient}
 			isLocked={generalSettings.lockThresholds}
+			theme={resolvedTheme}
 		/>
 	));
 
 	return (
 		<main className="grid grid-cols-[17rem_1fr] h-screen w-screen bg-background text-foreground overflow-hidden">
 			{/* Sidebar */}
-			<div className="border-r border-border bg-gray-100 overflow-hidden">
+			<div className="border-r border-border bg-gray-100 dark:bg-neutral-950 overflow-hidden">
 				<div className="h-full w-full grid grid-rows-[auto_1fr]">
-					<div className="p-3 border-b border-border ">
-						<h2 className="text-xl font-bold text-center">WebFSR</h2>
+					<div className="p-3 border-b border-border flex items-center justify-between">
+						<div className="size-8 shrink-0" />
+						<h2 className="text-xl font-bold flex-1 text-center">WebFSR</h2>
+						<Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={toggleTheme} aria-label="Toggle theme">
+							{resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+						</Button>
 					</div>
 
 					<CustomScrollArea>
@@ -453,9 +464,9 @@ const Dashboard = () => {
 
 							{heartrateError && <div className="text-sm text-destructive">Error with HR monitor: {heartrateError}</div>}
 
-							<div className="p-3 border rounded bg-white">
+							<div className="p-3 border rounded bg-white dark:bg-neutral-900">
 								<div className="flex items-center justify-between">
-									<span className="text-xs text-gray-600">Requests/sec:</span>
+									<span className="text-xs text-gray-600 dark:text-gray-400">Requests/sec:</span>
 									<span className="text-sm font-medium">{requestsPerSecond}</span>
 								</div>
 							</div>
@@ -515,7 +526,7 @@ const Dashboard = () => {
 
 							{/* Dev only toggles */}
 							{import.meta.env.DEV && (
-								<div className="p-3 border rounded bg-yellow-50 border-yellow-200">
+								<div className="p-3 border rounded bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
 									<label className="flex items-center gap-2 text-xs cursor-pointer">
 										<input
 											type="checkbox"
@@ -555,13 +566,13 @@ const Dashboard = () => {
 							{/* Bar Visualizations and Heartrate Section */}
 							<div className="flex gap-2 flex-shrink-0 h-[25rem]">
 								{/* Bar Visualizations */}
-								<div className="px-4 border rounded-lg bg-white shadow-sm flex-grow">
+								<div className="px-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm flex-grow">
 									<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">{sensorBars}</div>
 								</div>
 
 								{/* Heartrate Tracker */}
 								{heartrateSettings.showHeartrateMonitor && (
-									<div className="p-4 border rounded-lg bg-white shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
+									<div className="p-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
 										<div
 											className={`flex ${heartrateSettings.verticalAlignHeartrate ? "flex-col" : "flex-row"} items-center gap-4 w-full h-full justify-center`}
 										>
@@ -593,7 +604,7 @@ const Dashboard = () => {
 							</div>
 
 							{/* Time Series Graph */}
-							<div className="p-1 border rounded-lg bg-white shadow-sm mt-2 flex-grow min-h-0">
+							<div className="p-1 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm mt-2 flex-grow min-h-0">
 								<div className="h-full">
 									<TimeSeriesGraph
 										latestData={latestData}
@@ -608,6 +619,7 @@ const Dashboard = () => {
 										showBorder={graphSettings.showGraphBorder}
 										showActivation={graphSettings.showGraphActivation}
 										activationColor={colorSettings.graphActivationColor}
+										theme={resolvedTheme}
 									/>
 								</div>
 							</div>
@@ -619,7 +631,7 @@ const Dashboard = () => {
 							{/* Mock Bar Visualizations and Heartrate Section */}
 							<div className="flex gap-2 flex-shrink-0 h-[25rem]">
 								{/* Mock Bar Visualizations */}
-								<div className="px-4 border rounded-lg bg-white shadow-sm flex-grow">
+								<div className="px-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm flex-grow">
 									<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">
 										{Array.from({ length: MOCK_SENSOR_COUNT }, (_, index) => (
 											<SensorBar
@@ -640,6 +652,7 @@ const Dashboard = () => {
 												useThresholdColor={barSettings.useThresholdColor}
 												useGradient={barSettings.useBarGradient}
 												isLocked={true}
+												theme={resolvedTheme}
 											/>
 										))}
 									</div>
@@ -647,7 +660,7 @@ const Dashboard = () => {
 
 								{/* Mock Heartrate Tracker */}
 								{heartrateSettings.showHeartrateMonitor && (
-									<div className="p-4 border rounded-lg bg-white shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
+									<div className="p-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm aspect-square h-full flex flex-col items-center justify-center gap-2 min-w-64">
 										<div
 											className={`flex ${heartrateSettings.verticalAlignHeartrate ? "flex-col" : "flex-row"} items-center gap-4 w-full h-full justify-center`}
 										>
@@ -662,7 +675,7 @@ const Dashboard = () => {
 							</div>
 
 							{/* Mock Time Series Graph */}
-							<div className="p-1 border rounded-lg bg-white shadow-sm mt-2 flex-grow min-h-0">
+							<div className="p-1 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm mt-2 flex-grow min-h-0">
 								<div className="h-full">
 									<TimeSeriesGraph
 										latestData={null}
@@ -678,6 +691,7 @@ const Dashboard = () => {
 										showActivation={graphSettings.showGraphActivation}
 										activationColor={colorSettings.graphActivationColor}
 										initialData={generateMockTimeSeriesData(graphSettings.timeWindow)}
+										theme={resolvedTheme}
 									/>
 								</div>
 							</div>
@@ -701,7 +715,7 @@ const Dashboard = () => {
 												<Unplug className="h-5 w-5 text-muted-foreground" />
 												<h2 className="text-lg font-semibold">Disconnected</h2>
 											</div>
-											<p className="text-sm text-muted-foreground">Connect your device and allow access to view values</p>
+											<p className="text-sm text-muted-foreground">Connect your device and allow access to view data</p>
 										</div>
 									)}
 								</div>

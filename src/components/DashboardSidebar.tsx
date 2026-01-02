@@ -61,7 +61,7 @@ export function VisualSettingsSection({
 	};
 
 	return (
-		<Collapsible open={isVisualsOpen} onOpenChange={setIsVisualsOpen} className="p-3 border rounded bg-white">
+		<Collapsible open={isVisualsOpen} onOpenChange={setIsVisualsOpen} className="p-3 border rounded bg-white dark:bg-neutral-900">
 			<CollapsibleTrigger className="flex items-center justify-between w-full">
 				<span className="text-sm font-semibold">Visual Settings</span>
 				{isVisualsOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -404,7 +404,7 @@ export function ProfilesSection({
 
 	return (
 		<>
-			<Collapsible open={isOpen} onOpenChange={setIsOpen} className="p-3 border rounded bg-white">
+			<Collapsible open={isOpen} onOpenChange={setIsOpen} className="p-3 border rounded bg-white dark:bg-neutral-900">
 				<CollapsibleTrigger className="flex items-center justify-between w-full">
 					<span className="text-sm font-semibold">Profiles</span>
 					{isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -594,7 +594,11 @@ export function GeneralSettingsSection({ generalSettings }: GeneralSettingsSecti
 	const [isGeneralSettingsOpen, setIsGeneralSettingsOpen] = useState<boolean>(true);
 
 	return (
-		<Collapsible open={isGeneralSettingsOpen} onOpenChange={setIsGeneralSettingsOpen} className="p-3 border rounded bg-white">
+		<Collapsible
+			open={isGeneralSettingsOpen}
+			onOpenChange={setIsGeneralSettingsOpen}
+			className="p-3 border rounded bg-white dark:bg-neutral-900"
+		>
 			<CollapsibleTrigger className="flex items-center justify-between w-full">
 				<span className="text-sm font-semibold">General</span>
 				{isGeneralSettingsOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -668,7 +672,7 @@ export function HeartRateMonitorSection({
 	const [isHeartrateOpen, setIsHeartrateOpen] = useState<boolean>(true);
 
 	return (
-		<Collapsible open={isHeartrateOpen} onOpenChange={setIsHeartrateOpen} className="p-3 border rounded bg-white">
+		<Collapsible open={isHeartrateOpen} onOpenChange={setIsHeartrateOpen} className="p-3 border rounded bg-white dark:bg-neutral-900">
 			<CollapsibleTrigger className="flex items-center justify-between w-full">
 				<span className="text-sm font-semibold">Heartrate Monitor</span>
 				{isHeartrateOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -788,7 +792,7 @@ export function OBSSection({
 	};
 
 	return (
-		<Collapsible open={isOpen} onOpenChange={setIsOpen} className="p-3 border rounded bg-white">
+		<Collapsible open={isOpen} onOpenChange={setIsOpen} className="p-3 border rounded bg-white dark:bg-neutral-900">
 			<CollapsibleTrigger className="flex items-center justify-between w-full">
 				<span className="text-sm font-semibold">OBS</span>
 				{isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}

@@ -456,7 +456,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 						showActivation={graphConfig.showActivation}
 						activationColor={graphConfig.activationColor}
 						showSensorLabels={graphConfig.showSensorLabels}
-						sensorLabelColor={graphConfig.sensorLabelColor}
+						theme="dark"
 					/>
 				</div>
 			);
@@ -488,6 +488,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 						hideControls={sensorsConfig.hideControls}
 						backgroundColor={sensorsConfig.sensorBackgroundColor}
 						labelColor={sensorsConfig.sensorLabelColor}
+						theme="dark"
 					/>
 				</div>
 			));

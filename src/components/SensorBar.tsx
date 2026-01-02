@@ -24,6 +24,7 @@ interface SensorBarProps {
 	hideControls?: boolean;
 	backgroundColor?: string;
 	labelColor?: string;
+	theme?: "light" | "dark";
 }
 
 // Component for individual sensor bar
@@ -43,9 +44,12 @@ const SensorBar = ({
 	isLocked = false,
 	hideLabel = false,
 	hideControls = false,
-	backgroundColor = "white",
+	backgroundColor,
 	labelColor = "inherit",
+	theme,
 }: SensorBarProps) => {
+	const isDarkMode = theme === "dark";
+	const defaultBgColor = backgroundColor || (isDarkMode ? "#171717" : "white");
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const isDragging = useRef<boolean>(false);
@@ -167,6 +171,8 @@ const SensorBar = ({
 		const ctx = canvas.getContext("2d");
 		if (!ctx) return;
 
+		const isDarkMode = theme === "dark";
+
 		// Manage pixel ratio
 		const dpr = window.devicePixelRatio || 1;
 		const width = Math.floor(dimensions.width);
@@ -228,13 +234,13 @@ const SensorBar = ({
 		ctx.stroke();
 
 		// Draw border
-		ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
+		ctx.strokeStyle = isDarkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.2)";
 		ctx.lineWidth = 1;
 		ctx.strokeRect(0, 0, width, height);
 
 		// Draw value text
 		if (showValueText) {
-			ctx.fillStyle = "black";
+			ctx.fillStyle = isDarkMode ? "white" : "black";
 			ctx.font = `${12 * (1 / dpr)}px sans-serif`;
 			ctx.textAlign = "center";
 			ctx.textBaseline = "top";
@@ -248,7 +254,7 @@ const SensorBar = ({
 
 		// Draw threshold value text
 		if (showThresholdText) {
-			ctx.fillStyle = "black";
+			ctx.fillStyle = isDarkMode ? "white" : "black";
 			ctx.font = `${11 * (1 / dpr)}px sans-serif`;
 			ctx.textAlign = "center";
 			ctx.textBaseline = "bottom";
@@ -259,7 +265,19 @@ const SensorBar = ({
 
 			ctx.fillText(`${threshold}`, thresholdTextX, thresholdTextY);
 		}
-	}, [dimensions, value, maxValue, threshold, color, showThresholdText, showValueText, thresholdColor, useThresholdColor, useGradient]);
+	}, [
+		dimensions,
+		value,
+		maxValue,
+		threshold,
+		color,
+		showThresholdText,
+		showValueText,
+		thresholdColor,
+		useThresholdColor,
+		useGradient,
+		theme,
+	]);
 
 	return (
 		<div className="flex flex-col items-center select-none h-full px-4" ref={containerRef}>
@@ -272,7 +290,7 @@ const SensorBar = ({
 				<canvas
 					ref={canvasRef}
 					className={`border border-border rounded w-full h-full ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
-					style={{ backgroundColor }}
+					style={{ backgroundColor: defaultBgColor }}
 					aria-label={label}
 					onMouseDown={handleMouseDown}
 					onMouseMove={handleMouseMove}

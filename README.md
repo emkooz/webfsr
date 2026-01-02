@@ -13,6 +13,7 @@
 - Display heartrate monitor data using WebBluetooth.
 - Installable as a PWA, allowing it to run in a dedicated window and offline.
 - OBS Browser Source components of each visualization to display in recordings or streams
+- Dark mode
 
 ## Screenshot
 
@@ -60,5 +61,4 @@ List of the current routes:
    - Send real-time theme data to the client. This would allow for more in-depth statistical analysis which would support in pad debugging. For example, each miss can be sent to the client, connecting a miss in game with a specific sensor value.
    - This would be accomplished with a websocket server running locally on the machine, which will receive data from a theme module and pass it along to the client.
 - Import profiles saved from teejusb FSR web UI.
-- Dark mode
 - Control thresholds from external devices using WebRTC

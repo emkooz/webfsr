@@ -89,7 +89,7 @@ const CustomScrollArea = forwardRef<HTMLDivElement, CustomScrollAreaProps>(({ ch
 			{isScrollable && showScrollbar && (
 				<div className={`absolute top-0 right-0 w-2 h-full z-50 pointer-events-none ${showScrollbar ? "opacity-80" : "opacity-0"}`}>
 					<div
-						className="absolute bg-gray-300 w-2 rounded-full right-[2px]"
+						className="absolute bg-gray-300 dark:bg-gray-600 w-2 rounded-full right-[2px]"
 						style={{
 							height: `${scrollbarHeight}px`,
 							top: `${scrollbarTop}px`,

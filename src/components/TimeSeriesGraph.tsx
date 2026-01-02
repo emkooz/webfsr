@@ -16,8 +16,8 @@ interface TimeSeriesGraphProps {
 	showActivation: boolean;
 	activationColor: string;
 	showSensorLabels?: boolean;
-	sensorLabelColor?: string;
 	initialData?: Array<Array<{ value: number; timestamp: number }>>;
+	theme?: "light" | "dark";
 }
 
 // Component for time-series graph
@@ -35,8 +35,8 @@ const TimeSeriesGraph = ({
 	showActivation,
 	activationColor,
 	showSensorLabels = true,
-	sensorLabelColor = "rgba(0, 0, 0, 0.7)",
 	initialData,
+	theme,
 }: TimeSeriesGraphProps) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -85,7 +85,7 @@ const TimeSeriesGraph = ({
 		if (requestIdRef.current !== null) cancelAnimationFrame(requestIdRef.current);
 
 		requestIdRef.current = requestAnimationFrame(drawGraph);
-	}, [latestData, timeWindow]);
+	}, [latestData, timeWindow, theme]);
 
 	const drawGraph = () => {
 		requestIdRef.current = null;
@@ -126,6 +126,11 @@ const TimeSeriesGraph = ({
 
 		ctx.clearRect(0, 0, width, height);
 
+		const isDarkMode = theme === "dark";
+		const textColor = isDarkMode ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)";
+		const gridColor = isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+		const labelColor = isDarkMode ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)";
+
 		const currentTime = Date.now();
 
 		// For preview mode, regenerate timestamps relative to current time
@@ -148,7 +153,7 @@ const TimeSeriesGraph = ({
 
 		if (sensorCount === 0) {
 			// Draw a message when no data is available
-			ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+			ctx.fillStyle = labelColor;
 			ctx.font = "14px sans-serif";
 			ctx.textAlign = "center";
 			ctx.fillText("Waiting for data...", width / 2, height / 2);
@@ -162,7 +167,7 @@ const TimeSeriesGraph = ({
 
 		// Draw grid
 		if (showGridLines) {
-			ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
+			ctx.strokeStyle = gridColor;
 			ctx.lineWidth = 1;
 
 			// Vertical grid lines
@@ -174,7 +179,7 @@ const TimeSeriesGraph = ({
 				ctx.stroke();
 
 				// Draw time labels
-				ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+				ctx.fillStyle = labelColor;
 				ctx.font = "10px sans-serif";
 				ctx.textAlign = "center";
 				const timeLabel = Math.round((i / 6) * timeWindow);
@@ -194,7 +199,7 @@ const TimeSeriesGraph = ({
 				}
 
 				// Draw min/max value labels for this row
-				ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+				ctx.fillStyle = labelColor;
 				ctx.font = "10px sans-serif";
 				ctx.textAlign = "left";
 				ctx.fillText("0", 5, y + rowHeight - 5);
@@ -208,7 +213,7 @@ const TimeSeriesGraph = ({
 				const y = i * rowHeight;
 
 				if (i < sensorLabels.length) {
-					ctx.fillStyle = sensorLabelColor;
+					ctx.fillStyle = textColor;
 					ctx.font = "12px sans-serif";
 					ctx.textAlign = "right";
 					ctx.fillText(sensorLabels[i], width - 10, y + 15);
@@ -336,7 +341,7 @@ const TimeSeriesGraph = ({
 				ctx.fillRect(legendX, legendY - 10, 12, 12);
 
 				// Draw sensor text
-				ctx.fillStyle = sensorLabelColor;
+				ctx.fillStyle = textColor;
 				ctx.textAlign = "left";
 				ctx.fillText(sensorLabels[index], legendX + 15, legendY);
 			});
@@ -349,7 +354,7 @@ const TimeSeriesGraph = ({
 				ctx.fillRect(activationLegendX, legendY - 10, 12, 12);
 
 				// Draw activation text
-				ctx.fillStyle = "black";
+				ctx.fillStyle = textColor;
 				ctx.textAlign = "left";
 				ctx.fillText("Activated", activationLegendX + 15, legendY);
 			}
