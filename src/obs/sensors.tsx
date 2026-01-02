@@ -112,9 +112,7 @@ function SensorsOBSComponent() {
 			<div className="w-full h-screen flex items-center justify-center bg-transparent">
 				<div className="px-6 py-4 rounded-lg border bg-white/70 text-gray-900 shadow-sm">
 					<h1 className="text-lg font-semibold">WebFSR OBS Sensors</h1>
-					<p className="text-sm text-gray-700">
-						Status: {isConnecting ? "Connecting…" : isConnected ? "Connected" : "Disconnected"}
-					</p>
+					<p className="text-sm text-gray-700">Status: {isConnecting ? "Connecting…" : isConnected ? "Connected" : "Disconnected"}</p>
 					{error && <p className="text-sm text-red-600">{error}</p>}
 					{!pwd && <p className="text-sm text-amber-600">No password provided in URL</p>}
 				</div>
@@ -125,8 +123,7 @@ function SensorsOBSComponent() {
 	const numSensors = latestData?.values.length || 0;
 
 	const getVisibleSensors = () => {
-		if (!config.visibleSensors || config.visibleSensors === "all")
-			return Array.from({ length: numSensors }, (_, i) => i);
+		if (!config.visibleSensors || config.visibleSensors === "all") return Array.from({ length: numSensors }, (_, i) => i);
 
 		return config.visibleSensors
 			.split(",")
@@ -146,11 +143,7 @@ function SensorsOBSComponent() {
 				// In OBS don't allow threshold changes
 			}}
 			label={sensorLabels[sensorIndex] || `Sensor ${sensorIndex + 1}`}
-			color={
-				config.useSingleColor
-					? config.singleBarColor
-					: config.sensorColors[sensorIndex % config.sensorColors.length] || "#ff0000"
-			}
+			color={config.useSingleColor ? config.singleBarColor : config.sensorColors[sensorIndex % config.sensorColors.length] || "#ff0000"}
 			showThresholdText={config.showThresholdText}
 			showValueText={config.showValueText}
 			thresholdColor={config.thresholdColor}

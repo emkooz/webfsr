@@ -129,7 +129,9 @@ export function useProfileManager() {
 								autoIncrement: true,
 							});
 							profileStore.createIndex("name", "name", { unique: false });
-							profileStore.createIndex("updatedAt", "updatedAt", { unique: false });
+							profileStore.createIndex("updatedAt", "updatedAt", {
+								unique: false,
+							});
 						}
 
 						if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
@@ -156,7 +158,10 @@ export function useProfileManager() {
 
 					try {
 						// Attempt to mark bootstrap
-						await database.add(SETTINGS_STORE, { key: "bootstrapped", value: Date.now() });
+						await database.add(SETTINGS_STORE, {
+							key: "bootstrapped",
+							value: Date.now(),
+						});
 						shouldCreateDefault = true;
 					} catch {
 						shouldCreateDefault = false;
@@ -171,7 +176,10 @@ export function useProfileManager() {
 						};
 
 						const id = await database.add(PROFILES_STORE, defaultProfileWithTimestamps);
-						const newProfile = { ...defaultProfileWithTimestamps, id: id as number };
+						const newProfile = {
+							...defaultProfileWithTimestamps,
+							id: id as number,
+						};
 
 						setProfiles([newProfile]);
 						setActiveProfileId(id as number);
@@ -237,7 +245,7 @@ export function useProfileManager() {
 
 				if (existingProfile) {
 					// Remove id to create a new profile
-					const { id, ...rest } = existingProfile as ProfileData;
+					const { id: _id, ...rest } = existingProfile as ProfileData;
 					baseProfile = rest;
 				}
 			}

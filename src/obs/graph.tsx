@@ -99,9 +99,7 @@ function GraphOBSComponent() {
 			<div className="w-full h-screen flex items-center justify-center bg-transparent">
 				<div className="px-6 py-4 rounded-lg border bg-white/70 text-gray-900 shadow-sm">
 					<h1 className="text-lg font-semibold">WebFSR OBS Graph</h1>
-					<p className="text-sm text-gray-700">
-						Status: {isConnecting ? "Connecting…" : isConnected ? "Connected" : "Disconnected"}
-					</p>
+					<p className="text-sm text-gray-700">Status: {isConnecting ? "Connecting…" : isConnected ? "Connected" : "Disconnected"}</p>
 					{error && <p className="text-sm text-red-600">{error}</p>}
 					{!pwd && <p className="text-sm text-amber-600">No password provided in URL</p>}
 				</div>

@@ -131,7 +131,7 @@ export const useHeartrateMonitor = () => {
 				if (currentServer?.connected) {
 					try {
 						currentServer.disconnect();
-					} catch (disconnectErr) {
+					} catch {
 						// Ignore disconnection errors
 					}
 				}
@@ -182,9 +182,11 @@ export const useHeartrateMonitor = () => {
 			isConnectedRef.current = false;
 
 			// Create filters for the Bluetooth device request
-			const filters: Array<{ services?: string[]; name?: string; namePrefix?: string }> = [
-				{ services: [HEARTRATE_SERVICE] },
-			];
+			const filters: Array<{
+				services?: string[];
+				name?: string;
+				namePrefix?: string;
+			}> = [{ services: [HEARTRATE_SERVICE] }];
 
 			// Request device with heartrate service
 			const device = await navigator.bluetooth.requestDevice({ filters });
@@ -233,7 +235,7 @@ export const useHeartrateMonitor = () => {
 			try {
 				characteristic.removeEventListener("characteristicvaluechanged", handleHeartrateNotification);
 				await characteristic.stopNotifications();
-			} catch (err) {
+			} catch {
 				// Ignore errors on disconnect
 			}
 
@@ -244,7 +246,7 @@ export const useHeartrateMonitor = () => {
 		if (server) {
 			try {
 				if (server.connected) server.disconnect();
-			} catch (err) {
+			} catch {
 				// Ignore errors on disconnect
 			}
 

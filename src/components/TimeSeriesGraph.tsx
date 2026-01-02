@@ -62,8 +62,7 @@ const TimeSeriesGraph = ({
 		if (!latestData) return;
 
 		// Initialize data structure
-		if (timeSeriesDataRef.current.length === 0)
-			timeSeriesDataRef.current = Array.from({ length: latestData.values.length }, () => []);
+		if (timeSeriesDataRef.current.length === 0) timeSeriesDataRef.current = Array.from({ length: latestData.values.length }, () => []);
 
 		const currentTime = Date.now();
 

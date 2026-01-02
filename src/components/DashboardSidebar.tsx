@@ -304,10 +304,7 @@ export function VisualSettingsSection({
 										/>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-3" side="right">
-										<HexColorPicker
-											color={colorSettings.graphActivationColor}
-											onChange={colorSettings.setGraphActivationColor}
-										/>
+										<HexColorPicker color={colorSettings.graphActivationColor} onChange={colorSettings.setGraphActivationColor} />
 										<Input
 											type="text"
 											value={colorSettings.graphActivationColor}
@@ -437,10 +434,7 @@ export function ProfilesSection({
 														onSelect={() => onSelectProfile(profile.id || null)}
 													>
 														<Check
-															className={cn(
-																"mr-2 size-4",
-																activeProfileId === profile.id ? "opacity-100" : "opacity-0",
-															)}
+															className={cn("mr-2 size-4", activeProfileId === profile.id ? "opacity-100" : "opacity-0")}
 														/>
 														{profile.name}
 													</CommandItem>
@@ -564,8 +558,8 @@ export function ProfilesSection({
 					</DialogHeader>
 					<div className="py-2">
 						<p>
-							Are you sure you want to reset the "{activeProfile?.name}" profile to default values? Your thresholds and
-							sensor labels will be kept.
+							Are you sure you want to reset the "{activeProfile?.name}" profile to default values? Your thresholds and sensor labels
+							will be kept.
 						</p>
 						<p className="text-sm text-muted-foreground mt-1">This action cannot be undone.</p>
 					</div>
@@ -600,11 +594,7 @@ export function GeneralSettingsSection({ generalSettings }: GeneralSettingsSecti
 	const [isGeneralSettingsOpen, setIsGeneralSettingsOpen] = useState<boolean>(true);
 
 	return (
-		<Collapsible
-			open={isGeneralSettingsOpen}
-			onOpenChange={setIsGeneralSettingsOpen}
-			className="p-3 border rounded bg-white"
-		>
+		<Collapsible open={isGeneralSettingsOpen} onOpenChange={setIsGeneralSettingsOpen} className="p-3 border rounded bg-white">
 			<CollapsibleTrigger className="flex items-center justify-between w-full">
 				<span className="text-sm font-semibold">General</span>
 				{isGeneralSettingsOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -629,8 +619,7 @@ export function GeneralSettingsSection({ generalSettings }: GeneralSettingsSecti
 					</div>
 					<div className="flex flex-col gap-1">
 						<span className="text-xs pb-1">
-							Polling rate (polls/sec):{" "}
-							{generalSettings.useUnthrottledPolling ? "unlimited" : generalSettings.pollingRate}
+							Polling rate (polls/sec): {generalSettings.useUnthrottledPolling ? "unlimited" : generalSettings.pollingRate}
 						</span>
 						<Slider
 							value={[generalSettings.pollingRate]}
@@ -694,8 +683,7 @@ export function HeartRateMonitorSection({
 						<div className="text-xs">
 							<div>Connected to:</div>
 							<div className="font-medium">
-								{heartrateDevice.name || "Unknown device"}{" "}
-								{heartrateData?.heartrate ? `(${heartrateData.heartrate} bpm)` : ""}
+								{heartrateDevice.name || "Unknown device"} {heartrateData?.heartrate ? `(${heartrateData.heartrate} bpm)` : ""}
 							</div>
 						</div>
 					)}
@@ -901,12 +889,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 				<div className="space-y-3 text-sm">
 					<div className="flex items-center justify-between gap-4">
 						<span className="text-muted-foreground">Source</span>
-						<a
-							href={repoUrl}
-							target="_blank"
-							rel="noreferrer noopener"
-							className="font-medium underline underline-offset-4"
-						>
+						<a href={repoUrl} target="_blank" rel="noreferrer noopener" className="font-medium underline underline-offset-4">
 							{repoUrl}
 						</a>
 					</div>

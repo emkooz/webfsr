@@ -3,14 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { RgbaColorPicker } from "react-colorful";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
@@ -92,10 +85,8 @@ const decodeColorListFromUrl = (colorsParam: string): string[] =>
 	colorsParam.includes(";") ? colorsParam.split(";").map((c) => decodeURIComponent(c)) : colorsParam.split(",");
 
 // Encode/decode sensor labels for URL
-const encodeSensorLabelsForUrl = (labels: string[]): string =>
-	labels.map((label) => encodeURIComponent(label)).join(";");
-const decodeSensorLabelsFromUrl = (labelsParam: string): string[] =>
-	labelsParam.split(";").map((label) => decodeURIComponent(label));
+const encodeSensorLabelsForUrl = (labels: string[]): string => labels.map((label) => encodeURIComponent(label)).join(";");
+const decodeSensorLabelsFromUrl = (labelsParam: string): string[] => labelsParam.split(";").map((label) => decodeURIComponent(label));
 
 const parseRgbaString = (rgbaString: string): { r: number; g: number; b: number; a: number } => {
 	// Handle hex colors
@@ -189,12 +180,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		}
 	}, [open, graphConfig.timeWindow]);
 
-	const config =
-		selectedComponent === "graph"
-			? graphConfig
-			: selectedComponent === "sensors"
-				? sensorsConfig
-				: DEFAULT_CONFIGS.heartrate;
+	const config = selectedComponent === "graph" ? graphConfig : selectedComponent === "sensors" ? sensorsConfig : DEFAULT_CONFIGS.heartrate;
 
 	const previewContainerRef = useRef<HTMLDivElement>(null);
 	const sensorsInnerRef = useRef<HTMLDivElement>(null);
@@ -270,8 +256,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 
 	const isGraphConfig = (c: ComponentConfig): c is GraphConfig =>
 		c != null && typeof (c as GraphConfig).timeWindow === "number" && Array.isArray((c as GraphConfig).sensorColors);
-	const isSensorsConfig = (c: ComponentConfig): c is SensorsConfig =>
-		c != null && Array.isArray((c as SensorsConfig).sensorColors);
+	const isSensorsConfig = (c: ComponentConfig): c is SensorsConfig => c != null && Array.isArray((c as SensorsConfig).sensorColors);
 
 	const generateUrl = () => {
 		const baseUrl = `${window.location.origin}/obs/${selectedComponent}/`;
@@ -310,40 +295,29 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 			}
 		} else if (selectedComponent === "sensors" && isSensorsConfig(config)) {
 			const sensorsConfig = config;
-			if (
-				sensorsConfig.sensorColors &&
-				sensorsConfig.sensorColors.join(",") !== DEFAULT_CONFIGS.sensors.sensorColors.join(",")
-			) {
+			if (sensorsConfig.sensorColors && sensorsConfig.sensorColors.join(",") !== DEFAULT_CONFIGS.sensors.sensorColors.join(",")) {
 				params.set("colors", encodeColorListForUrl(sensorsConfig.sensorColors));
 			}
-			if (sensorsConfig.showThresholdText !== undefined && !sensorsConfig.showThresholdText)
-				params.set("showThreshold", "false");
+			if (sensorsConfig.showThresholdText !== undefined && !sensorsConfig.showThresholdText) params.set("showThreshold", "false");
 			if (sensorsConfig.showValueText !== undefined && !sensorsConfig.showValueText) params.set("showValue", "false");
-			if (sensorsConfig.useThresholdColor !== undefined && !sensorsConfig.useThresholdColor)
-				params.set("useThresholdColor", "false");
-			if (sensorsConfig.useSingleColor && sensorsConfig.useSingleColor) params.set("singleColor", "true");
-			if (sensorsConfig.useGradient && sensorsConfig.useGradient) params.set("gradient", "true");
+			if (sensorsConfig.useThresholdColor !== undefined && !sensorsConfig.useThresholdColor) params.set("useThresholdColor", "false");
+			if (sensorsConfig.useSingleColor) params.set("singleColor", "true");
+			if (sensorsConfig.useGradient) params.set("gradient", "true");
 			if (sensorsConfig.thresholdColor && sensorsConfig.thresholdColor !== DEFAULT_CONFIGS.sensors.thresholdColor) {
 				params.set("thresholdColor", sensorsConfig.thresholdColor);
 			}
 			if (sensorsConfig.singleBarColor && sensorsConfig.singleBarColor !== DEFAULT_CONFIGS.sensors.singleBarColor) {
 				params.set("singleBarColor", sensorsConfig.singleBarColor);
 			}
-			if (sensorsConfig.hideLabels && sensorsConfig.hideLabels) params.set("hideLabels", "true");
+			if (sensorsConfig.hideLabels) params.set("hideLabels", "true");
 			if (sensorsConfig.hideControls !== undefined && !sensorsConfig.hideControls) params.set("hideControls", "false");
 			if (sensorsConfig.visibleSensors && sensorsConfig.visibleSensors !== DEFAULT_CONFIGS.sensors.visibleSensors) {
 				params.set("sensors", sensorsConfig.visibleSensors);
 			}
-			if (
-				sensorsConfig.sensorBackgroundColor &&
-				sensorsConfig.sensorBackgroundColor !== DEFAULT_CONFIGS.sensors.sensorBackgroundColor
-			) {
+			if (sensorsConfig.sensorBackgroundColor && sensorsConfig.sensorBackgroundColor !== DEFAULT_CONFIGS.sensors.sensorBackgroundColor) {
 				params.set("sensorBg", sensorsConfig.sensorBackgroundColor);
 			}
-			if (
-				sensorsConfig.sensorLabelColor &&
-				sensorsConfig.sensorLabelColor !== DEFAULT_CONFIGS.sensors.sensorLabelColor
-			) {
+			if (sensorsConfig.sensorLabelColor && sensorsConfig.sensorLabelColor !== DEFAULT_CONFIGS.sensors.sensorLabelColor) {
 				params.set("labelColor", sensorsConfig.sensorLabelColor);
 			}
 			if (
@@ -384,7 +358,9 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		} else if (selectedIndices.length === 6) {
 			updateSensorsConfig({ visibleSensors: "all" });
 		} else {
-			updateSensorsConfig({ visibleSensors: selectedIndices.sort((a, b) => a - b).join(",") });
+			updateSensorsConfig({
+				visibleSensors: selectedIndices.sort((a, b) => a - b).join(","),
+			});
 		}
 	};
 
@@ -501,11 +477,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 						threshold={mockThresholds[sensorIndex]}
 						onThresholdChange={() => {}}
 						label={mockLabels[sensorIndex]}
-						color={
-							sensorsConfig.useSingleColor
-								? sensorsConfig.singleBarColor
-								: sensorColors[sensorIndex % sensorColors.length]
-						}
+						color={sensorsConfig.useSingleColor ? sensorsConfig.singleBarColor : sensorColors[sensorIndex % sensorColors.length]}
 						showThresholdText={sensorsConfig.showThresholdText}
 						showValueText={sensorsConfig.showValueText}
 						thresholdColor={sensorsConfig.thresholdColor}
@@ -726,7 +698,9 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 																onChange={(newColor) => {
 																	const newColors = [...(config as GraphConfig).sensorColors];
 																	newColors[index] = rgbaToString(newColor);
-																	updateGraphConfig({ sensorColors: newColors });
+																	updateGraphConfig({
+																		sensorColors: newColors,
+																	});
 																}}
 															/>
 														</PopoverContent>
@@ -759,7 +733,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 												<PopoverContent className="w-auto p-3">
 													<RgbaColorPicker
 														color={parseRgbaString((config as GraphConfig).activationColor)}
-														onChange={(color) => updateGraphConfig({ activationColor: rgbaToString(color) })}
+														onChange={(color) =>
+															updateGraphConfig({
+																activationColor: rgbaToString(color),
+															})
+														}
 													/>
 												</PopoverContent>
 											</Popover>
@@ -784,7 +762,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 											<Checkbox
 												id="showSensorLabels"
 												checked={(config as GraphConfig).showSensorLabels}
-												onCheckedChange={(checked) => updateGraphConfig({ showSensorLabels: Boolean(checked) })}
+												onCheckedChange={(checked) =>
+													updateGraphConfig({
+														showSensorLabels: Boolean(checked),
+													})
+												}
 											/>
 											<Label htmlFor="showSensorLabels" className="cursor-pointer">
 												Show Sensor Labels
@@ -794,7 +776,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 											<Checkbox
 												id="showThresholdLines"
 												checked={(config as GraphConfig).showThresholdLines}
-												onCheckedChange={(checked) => updateGraphConfig({ showThresholdLines: Boolean(checked) })}
+												onCheckedChange={(checked) =>
+													updateGraphConfig({
+														showThresholdLines: Boolean(checked),
+													})
+												}
 											/>
 											<Label htmlFor="showThresholdLines" className="cursor-pointer">
 												Show Threshold Lines
@@ -804,7 +790,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 											<Checkbox
 												id="showActivation"
 												checked={(config as GraphConfig).showActivation}
-												onCheckedChange={(checked) => updateGraphConfig({ showActivation: Boolean(checked) })}
+												onCheckedChange={(checked) =>
+													updateGraphConfig({
+														showActivation: Boolean(checked),
+													})
+												}
 											/>
 											<Label htmlFor="showActivation" className="cursor-pointer">
 												Show Activation
@@ -864,7 +854,9 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 															onChange={(e) => {
 																const newLabels = [...((config as SensorsConfig).sensorLabels || [])];
 																newLabels[index] = e.target.value;
-																updateSensorsConfig({ sensorLabels: newLabels });
+																updateSensorsConfig({
+																	sensorLabels: newLabels,
+																});
 															}}
 															className="h-8 text-sm"
 															placeholder={`Sensor ${index + 1}`}
@@ -907,7 +899,9 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 																onChange={(newColor) => {
 																	const newColors = [...(config as SensorsConfig).sensorColors];
 																	newColors[index] = rgbaToString(newColor);
-																	updateSensorsConfig({ sensorColors: newColors });
+																	updateSensorsConfig({
+																		sensorColors: newColors,
+																	});
 																}}
 															/>
 														</PopoverContent>
@@ -943,7 +937,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 													<PopoverContent className="w-auto p-3">
 														<RgbaColorPicker
 															color={parseRgbaString((config as SensorsConfig).sensorBackgroundColor)}
-															onChange={(color) => updateSensorsConfig({ sensorBackgroundColor: rgbaToString(color) })}
+															onChange={(color) =>
+																updateSensorsConfig({
+																	sensorBackgroundColor: rgbaToString(color),
+																})
+															}
 														/>
 													</PopoverContent>
 												</Popover>
@@ -973,7 +971,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 													<PopoverContent className="w-auto p-3">
 														<RgbaColorPicker
 															color={parseRgbaString((config as SensorsConfig).thresholdColor)}
-															onChange={(color) => updateSensorsConfig({ thresholdColor: rgbaToString(color) })}
+															onChange={(color) =>
+																updateSensorsConfig({
+																	thresholdColor: rgbaToString(color),
+																})
+															}
 														/>
 													</PopoverContent>
 												</Popover>
@@ -1006,7 +1008,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 													<PopoverContent className="w-auto p-3">
 														<RgbaColorPicker
 															color={parseRgbaString((config as SensorsConfig).singleBarColor)}
-															onChange={(color) => updateSensorsConfig({ singleBarColor: rgbaToString(color) })}
+															onChange={(color) =>
+																updateSensorsConfig({
+																	singleBarColor: rgbaToString(color),
+																})
+															}
 														/>
 													</PopoverContent>
 												</Popover>
@@ -1022,7 +1028,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 											<Checkbox
 												id="showThresholdText"
 												checked={(config as SensorsConfig).showThresholdText}
-												onCheckedChange={(checked) => updateSensorsConfig({ showThresholdText: Boolean(checked) })}
+												onCheckedChange={(checked) =>
+													updateSensorsConfig({
+														showThresholdText: Boolean(checked),
+													})
+												}
 											/>
 											<Label htmlFor="showThresholdText" className="cursor-pointer">
 												Show Threshold Text
@@ -1032,7 +1042,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 											<Checkbox
 												id="showValueText"
 												checked={(config as SensorsConfig).showValueText}
-												onCheckedChange={(checked) => updateSensorsConfig({ showValueText: Boolean(checked) })}
+												onCheckedChange={(checked) =>
+													updateSensorsConfig({
+														showValueText: Boolean(checked),
+													})
+												}
 											/>
 											<Label htmlFor="showValueText" className="cursor-pointer">
 												Show Value Text
@@ -1042,7 +1056,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 											<Checkbox
 												id="useThresholdColor"
 												checked={(config as SensorsConfig).useThresholdColor}
-												onCheckedChange={(checked) => updateSensorsConfig({ useThresholdColor: Boolean(checked) })}
+												onCheckedChange={(checked) =>
+													updateSensorsConfig({
+														useThresholdColor: Boolean(checked),
+													})
+												}
 											/>
 											<Label htmlFor="useThresholdColor" className="cursor-pointer">
 												Use Threshold Color
@@ -1062,7 +1080,11 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 											<Checkbox
 												id="useSingleColor"
 												checked={(config as SensorsConfig).useSingleColor}
-												onCheckedChange={(checked) => updateSensorsConfig({ useSingleColor: Boolean(checked) })}
+												onCheckedChange={(checked) =>
+													updateSensorsConfig({
+														useSingleColor: Boolean(checked),
+													})
+												}
 											/>
 											<Label htmlFor="useSingleColor" className="cursor-pointer">
 												Use Single Color

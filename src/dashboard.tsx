@@ -47,8 +47,10 @@ const Dashboard = () => {
 	const generalSettings = useGeneralSettings();
 	const { updateAllSettings, getAllSettings } = useSettingsBulkActions();
 
-	const { isSupported, connect, disconnect, connected, connectionError, requestsPerSecond, sendText, latestData } =
-		useSerialPort(generalSettings.pollingRate, generalSettings.useUnthrottledPolling, (values) => {
+	const { isSupported, connect, disconnect, connected, connectionError, requestsPerSecond, sendText, latestData } = useSerialPort(
+		generalSettings.pollingRate,
+		generalSettings.useUnthrottledPolling,
+		(values) => {
 			if (!obsConnected) return;
 
 			const now = performance.now();
@@ -58,7 +60,8 @@ const Dashboard = () => {
 				lastBroadcastAtRef.current = now;
 				void broadcast({ values, thresholds });
 			}
-		});
+		},
+	);
 
 	const numSensors = useSensorCount();
 
@@ -269,15 +272,7 @@ const Dashboard = () => {
 		return () => {
 			if (writebackTimeoutRef.current) window.clearTimeout(writebackTimeoutRef.current);
 		};
-	}, [
-		activeProfileId,
-		colorSettings,
-		barSettings,
-		graphSettings,
-		heartrateSettings,
-		generalSettings,
-		isSyncingProfile,
-	]);
+	}, [activeProfileId, colorSettings, barSettings, graphSettings, heartrateSettings, generalSettings, isSyncingProfile]);
 
 	// Initialize defaults when number of sensors changes
 	useEffect(() => {
@@ -424,13 +419,9 @@ const Dashboard = () => {
 								</div>
 							</div>
 
-							{connectionError && (
-								<div className="text-sm text-destructive">Error connecting to device: {connectionError}</div>
-							)}
+							{connectionError && <div className="text-sm text-destructive">Error connecting to device: {connectionError}</div>}
 
-							{heartrateError && (
-								<div className="text-sm text-destructive">Error with HR monitor: {heartrateError}</div>
-							)}
+							{heartrateError && <div className="text-sm text-destructive">Error with HR monitor: {heartrateError}</div>}
 
 							<div className="p-3 border rounded bg-white">
 								<div className="flex items-center justify-between">
@@ -598,11 +589,7 @@ const Dashboard = () => {
 				)}
 			</div>
 
-			<OBSComponentDialog
-				open={obsComponentDialogOpen}
-				onOpenChange={setObsComponentDialogOpen}
-				password={obsPassword}
-			/>
+			<OBSComponentDialog open={obsComponentDialogOpen} onOpenChange={setObsComponentDialogOpen} password={obsPassword} />
 
 			<AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 		</main>

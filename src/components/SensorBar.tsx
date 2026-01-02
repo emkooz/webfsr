@@ -259,18 +259,7 @@ const SensorBar = ({
 
 			ctx.fillText(`${threshold}`, thresholdTextX, thresholdTextY);
 		}
-	}, [
-		dimensions,
-		value,
-		maxValue,
-		threshold,
-		color,
-		showThresholdText,
-		showValueText,
-		thresholdColor,
-		useThresholdColor,
-		useGradient,
-	]);
+	}, [dimensions, value, maxValue, threshold, color, showThresholdText, showValueText, thresholdColor, useThresholdColor, useGradient]);
 
 	return (
 		<div className="flex flex-col items-center select-none h-full px-4" ref={containerRef}>
@@ -279,9 +268,7 @@ const SensorBar = ({
 					{label}
 				</div>
 			)}
-			<div
-				className={`relative flex-1 w-full flex flex-col ${!hideControls ? "mb-2" : ""} canvas-container min-h-[200px]`}
-			>
+			<div className={`relative flex-1 w-full flex flex-col ${!hideControls ? "mb-2" : ""} canvas-container min-h-[200px]`}>
 				<canvas
 					ref={canvasRef}
 					className={`border border-border rounded w-full h-full ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}

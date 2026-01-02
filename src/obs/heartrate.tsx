@@ -28,9 +28,7 @@ function HeartrateObsDemo() {
 		<div className="min-h-screen w-screen flex items-center justify-center bg-transparent">
 			<div className="px-4 py-3 rounded-lg border bg-white/70 text-gray-900 shadow-sm">
 				<h1 className="text-lg font-semibold">OBS Heartrate</h1>
-				<p className="text-sm text-gray-700">
-					Status: {isConnecting ? "Connecting…" : isConnected ? "Connected" : "Disconnected"}
-				</p>
+				<p className="text-sm text-gray-700">Status: {isConnecting ? "Connecting…" : isConnected ? "Connected" : "Disconnected"}</p>
 				<p className="text-sm mt-1">Events received: {eventCount}</p>
 			</div>
 		</div>

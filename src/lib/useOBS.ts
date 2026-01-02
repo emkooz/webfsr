@@ -106,8 +106,7 @@ export const useOBS = () => {
 		const wrappedHandler = (e: unknown) => {
 			try {
 				const maybe = e as { eventData?: unknown } | null;
-				const raw =
-					maybe && typeof maybe === "object" && "eventData" in maybe ? (maybe as { eventData: unknown }).eventData : e;
+				const raw = maybe && typeof maybe === "object" && "eventData" in maybe ? (maybe as { eventData: unknown }).eventData : e;
 				handler(raw as ObsBroadcastPayload);
 			} catch {
 				// ignore handler errors

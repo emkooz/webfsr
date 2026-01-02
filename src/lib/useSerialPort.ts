@@ -6,11 +6,7 @@ export interface SerialData {
 	values: number[];
 }
 
-export const useSerialPort = (
-	pollingRate = 100,
-	useUnthrottledPolling = false,
-	onValues?: (values: number[]) => void,
-) => {
+export const useSerialPort = (pollingRate = 100, useUnthrottledPolling = false, onValues?: (values: number[]) => void) => {
 	const [port, setPort] = useState<SerialPort | null>(null);
 	const [connected, setConnected] = useState<boolean>(false);
 	const [connectionError, setConnectionError] = useState<string>("");
@@ -196,8 +192,7 @@ export const useSerialPort = (
 					}
 				}
 			} catch (error) {
-				if (isReadingRef.current)
-					setConnectionError(error instanceof Error ? error.message : "Error reading from serial port");
+				if (isReadingRef.current) setConnectionError(error instanceof Error ? error.message : "Error reading from serial port");
 			}
 		};
 
