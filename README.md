@@ -1,23 +1,23 @@
 <div align="center">
-  <h1>WebFSR</h1>
+  <h1 style="border-bottom: none;">WebFSR - <a href="https://webfsr.com">webfsr.com</a></h1>
 </div>
 
 <div align="center">
-  <h2>
+  <h3 style="border-bottom: none;">
     Web client for managing FSR pads running the <a href="https://github.com/teejusb/fsr">teejusb FSR firmware</a>.
-  </h2>
+  </h3>
 </div>
 
 ## Features
 
-- Connect directly to the microcontroller without installing anything locally, through WebSerial (requires a Chromium-based browser).
+- Connect directly to the microcontroller using WebSerial (requires a Chromium-based browser).
 - View current sensor data and adjust thresholds.
 - Settings to adjust the visuals of the sensor bars and the time series graph.
 - Automatically save all settings and threshold values to profiles, stored using IndexedDB.
 - Display heartrate monitor data using WebBluetooth.
 - Installable as a PWA, allowing it to run in a dedicated window and offline.
-- OBS Browser Source components of each visualization to display in recordings or streams
-- Dark mode
+- OBS Browser Source components of each visualization to display in recordings or streams.
+- Light and dark mode.
 
 ## Screenshot
 
@@ -66,3 +66,21 @@ List of the current routes:
    - This would be accomplished with a websocket server running locally on the machine, which will receive data from a theme module and pass it along to the client.
 - Import profiles saved from teejusb FSR web UI.
 - Control thresholds from external devices using WebRTC
+
+## Development
+
+### Prerequisites
+
+- pnpm
+
+### Setup
+
+1. Clone the repo
+2. Install dependencies:
+```bash
+pnpm install
+```
+3. Run the dev server:
+```bash
+pnpm dev
+```
