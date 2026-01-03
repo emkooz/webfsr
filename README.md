@@ -2,7 +2,11 @@
   <h1>WebFSR</h1>
 </div>
 
-### Web client for managing FSR pads running the [teejusb FSR firmware](https://github.com/teejusb/fsr).
+<div align="center">
+  <h2>
+    Web client for managing FSR pads running the <a href="https://github.com/teejusb/fsr">teejusb FSR firmware</a>.
+  </h2>
+</div>
 
 ## Features
 

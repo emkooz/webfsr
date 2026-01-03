@@ -123,13 +123,11 @@ function GraphOBSComponent() {
 				showActivation={config.showActivation}
 				activationColor={config.activationColor}
 				showSensorLabels={config.showSensorLabels}
-				sensorLabelColor={config.sensorLabelColor}
 			/>
 		</div>
 	);
 }
 
-// biome-ignore lint/style/noNonNullAssertion: root will always exist in our entry HTML
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
 		<GraphOBSComponent />

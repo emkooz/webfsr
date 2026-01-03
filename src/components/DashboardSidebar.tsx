@@ -80,7 +80,6 @@ export function VisualSettingsSection({
 									const colorIndex = index % colorSettings.sensorColors.length;
 									const color = colorSettings.sensorColors[colorIndex];
 									return (
-										// biome-ignore lint/suspicious/noArrayIndexKey:
 										<div key={`color-picker-${index}`} className="flex items-center justify-between gap-2">
 											<Input
 												type="text"

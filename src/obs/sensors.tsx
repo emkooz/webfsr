@@ -168,7 +168,6 @@ function SensorsOBSComponent() {
 	);
 }
 
-// biome-ignore lint/style/noNonNullAssertion: root will always exist in our entry HTML
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
 		<SensorsOBSComponent />
