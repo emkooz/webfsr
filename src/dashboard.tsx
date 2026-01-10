@@ -1,5 +1,5 @@
-import { AlertTriangle, Heart, Moon, Sun, Unplug } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, Download, Heart, Moon, Share, Smartphone, Sun, Unplug } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
 	AboutDialog,
 	GeneralSettingsSection,
@@ -8,17 +8,23 @@ import {
 	ProfilesSection,
 	VisualSettingsSection,
 } from "~/components/DashboardSidebar";
+import MobileDashboard from "~/components/MobileDashboard";
 import { OBSComponentDialog } from "~/components/OBSComponentDialog";
+import PairingQRModal from "~/components/PairingQRModal";
 import SensorBar from "~/components/SensorBar";
 import TimeSeriesGraph from "~/components/TimeSeriesGraph";
 import { Button } from "~/components/ui/button";
 import { CustomScrollArea } from "~/components/ui/custom-scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import { useHeartrateMonitor } from "~/lib/useHeartrateMonitor";
 import { useOBS } from "~/lib/useOBS";
 import { type ProfileData, useProfileManager } from "~/lib/useProfileManager";
+import { usePWAInstall } from "~/lib/usePWAInstall";
+import { useLastCode, useRemoteControl } from "~/lib/useRemoteControl";
 import { useSerialPort } from "~/lib/useSerialPort";
 import { useTheme } from "~/lib/useTheme";
 import { useSensorCount } from "~/store/dataStore";
+import type { DesktopMessage, MobileMessage, ProfileSyncPayload } from "~/store/remoteStore";
 import {
 	useBarVisualizationSettings,
 	useColorSettings,
@@ -27,6 +33,20 @@ import {
 	useHeartrateSettings,
 	useSettingsBulkActions,
 } from "~/store/settingsStore";
+
+const MOBILE_BREAKPOINT = 768;
+
+function useIsMobile() {
+	const subscribe = (callback: () => void) => {
+		const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+		mql.addEventListener("change", callback);
+		return () => mql.removeEventListener("change", callback);
+	};
+	const getSnapshot = () => window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`).matches;
+	const getServerSnapshot = () => false;
+
+	return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
 
 // annoying but needed to prevent re-renders of some components with specific callbacks
 function useStableCallback<Args extends unknown[], R>(callback: (...args: Args) => R): (...args: Args) => R {
@@ -80,14 +100,26 @@ const Dashboard = () => {
 		generalSettings.pollingRate,
 		generalSettings.useUnthrottledPolling,
 		(values) => {
-			if (!obsConnected) return;
-
 			const now = performance.now();
-			const minIntervalMs = Math.max(1, 1000 / Math.max(1, generalSettings.obsSendRate));
 
-			if (now - lastBroadcastAtRef.current >= minIntervalMs) {
-				lastBroadcastAtRef.current = now;
-				void broadcast({ values, thresholds });
+			// Broadcast to OBS
+			if (obsConnected) {
+				const minIntervalMs = Math.max(1, 1000 / Math.max(1, generalSettings.obsSendRate));
+
+				if (now - lastBroadcastAtRef.current >= minIntervalMs) {
+					lastBroadcastAtRef.current = now;
+					void broadcast({ values, thresholds });
+				}
+			}
+
+			// Broadcast to remote mobile device (30/sec)
+			if (remoteConnected) {
+				const remoteMinIntervalMs = 1000 / 30;
+
+				if (now - lastRemoteBroadcastAtRef.current >= remoteMinIntervalMs) {
+					lastRemoteBroadcastAtRef.current = now;
+					sendRemote({ type: "values", payload: { values, timestamp: Date.now() } });
+				}
 			}
 		},
 	);
@@ -122,6 +154,13 @@ const Dashboard = () => {
 
 	const { resolvedTheme, setTheme } = useTheme();
 
+	const { lastCode, setLastCode } = useLastCode();
+	const [showCodeChoice, setShowCodeChoice] = useState(false);
+
+	const { canInstall, showIOSInstall, isInstalled, install } = usePWAInstall();
+	const [installDismissed, setInstallDismissed] = useState(false);
+	const showInstallBanner = !isInstalled && !installDismissed && (canInstall || showIOSInstall);
+
 	const createProfileStable = useStableCallback(createProfile);
 	const deleteProfileStable = useStableCallback(deleteProfile);
 	const updateProfileStable = useStableCallback(updateProfile);
@@ -143,6 +182,9 @@ const Dashboard = () => {
 	const [obsComponentDialogOpen, setObsComponentDialogOpen] = useState<boolean>(false);
 	const [obsPassword, setobsPassword] = useState<string>(activeProfile?.obsPassword ?? "");
 	const [aboutOpen, setAboutOpen] = useState<boolean>(false);
+	const [pairingModalOpen, setPairingModalOpen] = useState<boolean>(false);
+
+	const isMobile = useIsMobile();
 
 	// Dev only: toggle to hide disconnected overlay
 	const [devHideOverlay, setDevHideOverlay] = useState<boolean>(import.meta.env.DEV);
@@ -164,6 +206,81 @@ const Dashboard = () => {
 		setAutoConnectEnabled,
 	} = useOBS();
 	const lastBroadcastAtRef = useRef<number>(0);
+	const lastRemoteBroadcastAtRef = useRef<number>(0);
+
+	// Mobile control connection handler
+	const handleRemoteMessage = useStableCallback((message: DesktopMessage | MobileMessage) => {
+		if (message.type === "threshold") {
+			// Mobile sent a threshold change
+			const { index, value } = message as { type: "threshold"; index: number; value: number };
+			handleThresholdChange(index, value);
+		} else if (message.type === "ready") {
+			// Mobile is ready, send full sync
+			sendProfileSync();
+		}
+	});
+
+	const {
+		isConnected: remoteConnected,
+		isConnecting: remoteConnecting,
+		code: remoteCode,
+		connect: connectRemote,
+		disconnect: disconnectRemote,
+		send: sendRemote,
+	} = useRemoteControl({
+		role: "host",
+		onPeerConnected: () => {
+			// Send full profile sync when peer connects
+			sendProfileSync();
+		},
+		onPeerDisconnected: () => {
+			// no-op
+		},
+		onMessage: handleRemoteMessage,
+	});
+
+	// Save code when a peer successfully connects
+	useEffect(() => {
+		if (remoteConnected && remoteCode) {
+			void setLastCode(remoteCode);
+		}
+	}, [remoteConnected, remoteCode]);
+
+	// Build and send profile sync payload
+	const sendProfileSync = useStableCallback(() => {
+		if (!remoteConnected) return;
+
+		const payload: ProfileSyncPayload = {
+			thresholds,
+			sensorLabels,
+			sensorColors: colorSettings.sensorColors,
+			thresholdColor: colorSettings.thresholdColor,
+			useThresholdColor: barSettings.useThresholdColor,
+			useSingleColor: barSettings.useSingleColor,
+			singleBarColor: colorSettings.singleBarColor,
+			isLocked: generalSettings.lockThresholds,
+			theme: resolvedTheme,
+		};
+
+		sendRemote({ type: "sync", payload });
+	});
+
+	// Re-sync profile when settings change while connected
+	useEffect(() => {
+		if (!remoteConnected) return;
+		sendProfileSync();
+	}, [
+		remoteConnected,
+		thresholds,
+		sensorLabels,
+		colorSettings.sensorColors,
+		colorSettings.thresholdColor,
+		barSettings.useThresholdColor,
+		barSettings.useSingleColor,
+		colorSettings.singleBarColor,
+		generalSettings.lockThresholds,
+		resolvedTheme,
+	]);
 
 	// Calculate heart beat animation duration based on BPM
 	const heartBeatDuration =
@@ -398,6 +515,11 @@ const Dashboard = () => {
 		setObsComponentDialogOpen(true);
 	});
 
+	const onToggleAutoConnectStable = useStableCallback((checked: boolean, pwd: string) => {
+		if (!pwd) return;
+		setAutoConnectEnabled(checked && !!pwd, pwd);
+	});
+
 	const sensorBars = Array.from({ length: numSensors }, (_, index) => (
 		<SensorBar
 			key={`sensor-${index}`}
@@ -421,13 +543,57 @@ const Dashboard = () => {
 		/>
 	));
 
+	// Render mobile layout
+	if (isMobile) {
+		return (
+			<MobileDashboard
+				sensorColors={colorSettings.sensorColors}
+				thresholdColor={colorSettings.thresholdColor}
+				useThresholdColor={barSettings.useThresholdColor}
+				useSingleColor={barSettings.useSingleColor}
+				singleBarColor={colorSettings.singleBarColor}
+				theme={resolvedTheme}
+				canInstallPWA={canInstall}
+				showIOSInstall={showIOSInstall}
+				isInstalled={isInstalled}
+				onInstallPWA={install}
+				profileName={activeProfile?.name}
+			/>
+		);
+	}
+
 	return (
 		<main className="grid grid-cols-[17rem_1fr] h-screen w-screen bg-background text-foreground overflow-hidden">
 			{/* Sidebar */}
 			<div className="border-r border-border bg-gray-100 dark:bg-neutral-950 overflow-hidden">
 				<div className="h-full w-full grid grid-rows-[auto_1fr]">
 					<div className="p-3 border-b border-border flex items-center justify-between">
-						<div className="size-8 shrink-0" />
+						{showInstallBanner ? (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="size-8 shrink-0"
+										onClick={() => (canInstall ? install() : setInstallDismissed(true))}
+										aria-label={canInstall ? "Install app" : "Install instructions"}
+									>
+										<Download className="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="right" className="max-w-48">
+									{canInstall ? (
+										<p>Install WebFSR as an app</p>
+									) : showIOSInstall ? (
+										<p>
+											Install as an app: tap <Share className="size-3 inline mx-0.5" /> then "Add to Home Screen"
+										</p>
+									) : null}
+								</TooltipContent>
+							</Tooltip>
+						) : (
+							<div className="size-8 shrink-0" />
+						)}
 						<h2 className="text-xl font-bold flex-1 text-center">WebFSR</h2>
 						<Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={toggleTheme} aria-label="Toggle theme">
 							{resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -437,7 +603,26 @@ const Dashboard = () => {
 					<CustomScrollArea>
 						<div className="p-4 flex flex-col gap-3">
 							<Button onClick={handleConnectionToggle} className="w-full" disabled={!isSupported}>
-								{connected ? "Disconnect from pad" : "Connect to pad"}
+								{connected ? "Disconnect from Pad" : "Connect to Pad"}
+							</Button>
+
+							<Button
+								variant="outline"
+								onClick={() => {
+									setPairingModalOpen(true);
+									// If not already connected, show choice if we have a last code
+									if (!remoteConnected && !remoteConnecting) {
+										if (lastCode) {
+											setShowCodeChoice(true);
+										} else {
+											connectRemote();
+										}
+									}
+								}}
+								className="w-full gap-2"
+							>
+								<Smartphone className="size-4" />
+								{remoteConnected ? "Mobile Connected" : "Pair Mobile Device"}
 							</Button>
 
 							<div className="grid grid-cols-2 gap-1 text-xs text-center">
@@ -494,10 +679,7 @@ const Dashboard = () => {
 								onCreateComponent={onCreateComponent}
 								autoConnectEnabled={obsAutoConnectEnabled}
 								nextRetryInMs={obsNextRetryInMs}
-								onToggleAutoConnect={useStableCallback((checked: boolean, pwd: string) => {
-									if (!pwd) return;
-									setAutoConnectEnabled(checked && !!pwd, pwd);
-								})}
+								onToggleAutoConnect={onToggleAutoConnectStable}
 								password={obsPassword}
 								onPasswordChange={setobsPassword}
 								activeProfile={activeProfile}
@@ -728,6 +910,32 @@ const Dashboard = () => {
 			<OBSComponentDialog open={obsComponentDialogOpen} onOpenChange={setObsComponentDialogOpen} password={obsPassword} />
 
 			<AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+			<PairingQRModal
+				open={pairingModalOpen}
+				onOpenChange={(open) => {
+					setPairingModalOpen(open);
+					if (!open) {
+						setShowCodeChoice(false);
+					}
+				}}
+				code={remoteCode}
+				isConnected={remoteConnected}
+				isConnecting={remoteConnecting}
+				onDisconnect={disconnectRemote}
+				lastCode={lastCode}
+				showCodeChoice={showCodeChoice}
+				onUseLastCode={() => {
+					setShowCodeChoice(false);
+					if (lastCode) {
+						connectRemote(lastCode);
+					}
+				}}
+				onUseNewCode={() => {
+					setShowCodeChoice(false);
+					connectRemote();
+				}}
+			/>
 		</main>
 	);
 };

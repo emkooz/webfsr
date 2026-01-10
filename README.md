@@ -18,6 +18,7 @@
 - Installable as a PWA, allowing it to run in a dedicated window and offline.
 - OBS Browser Source components of each visualization to display in recordings or streams.
 - Light and dark mode.
+- Control thresholds from an external mobile device.
 
 ## Screenshot
 
@@ -31,9 +32,18 @@ To install it as a PWA, find a button in the top-right corner of your browser wh
 
 <img src="./pwa.png" alt="Install WebFSR as PWA button" />
 
-## OBS Browser Source Components
+## Managing thresholds from an external device
 
 > [!NOTE]
+> Direct WebRTC connections may not always be possible on certain restrictive networks (e.g. universities, mobile). If you self-host, trystero allows adding a TURN server to proxy connections. Additionally, check your browser's WebRTC settings if the devices are failing to connect (for example, Helium Browser's #webrtc-ip-handling-policy flag needs to be set to "Default").
+
+A mobile device can be paired to control the thresholds of the connected pad. This is completely peer-to-peer, using WebRTC for communication. 
+
+The initial signaling handshake is done using [trystero](https://github.com/dmotz/trystero) with the BitTorrent backend, using open torrent trackers as the signaling server to match peers and exchange WebRTC SDP needed to make a connection. Per trystero documentation, all signaling communication is encrypted using the unique app and room ID. 
+
+## OBS Browser Source Components
+
+> [!IMPORTANT]
 > Minimizing or occluding the page will likely cause the websocket connection to be heavily throttled. Until a good mitigation for this is found, bring the tab/PWA into focus, and then open ITG without focusing any other window.
 
 Each visualization can be loaded in a separate route to display in an OBS Browser Source. This allows for high quality stream elements without resorting to using Window Capture.
@@ -55,18 +65,12 @@ List of the current routes:
 - `/obs/sensors/`
 - `/obs/graph/`
 
-## Use cases which are not covered
-
-- WebFSR must be used on the same device that the pad is connected to. If you are trying to adjust thresholds from another device (such as a phone), you must use the standard teejusb FSR web UI setup.
-
 ## Future TODO
 
 - Integration with ITGmania
    - Send real-time theme data to the client. This would allow for more in-depth statistical analysis which would support in pad debugging. For example, each miss can be sent to the client, connecting a miss in game with a specific sensor value.
    - This would be accomplished with a websocket server running locally on the machine, which will receive data from a theme module and pass it along to the client.
 - Import profiles saved from teejusb FSR web UI.
-- Control thresholds from external devices using WebRTC
-
 ## Development
 
 ### Prerequisites
