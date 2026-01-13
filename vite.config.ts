@@ -36,6 +36,9 @@ export default defineConfig({
 			devOptions: {
 				enabled: true,
 			},
+			workbox: {
+				navigateFallbackDenylist: [/^\/api/, /^\/ws/],
+			},
 			includeAssets: [
 				"favicon.ico",
 				"apple-touch-icon-180x180.png",

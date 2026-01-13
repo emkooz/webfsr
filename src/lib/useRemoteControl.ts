@@ -10,6 +10,15 @@ const DB_VERSION = 1;
 const SETTINGS_STORE = "settings";
 const LAST_CODE_KEY = "lastCode";
 
+const RTC_CONFIG: RTCConfiguration = {
+	iceServers: [
+		{ urls: "stun:stun.l.google.com:19302" },
+		{ urls: "stun:stun1.l.google.com:19302" },
+		{ urls: "stun:stun2.l.google.com:19302" },
+		{ urls: "stun:stun.cloudflare.com:3478" },
+	],
+};
+
 export interface UseRemoteControlOptions {
 	role: "host" | "remote";
 	code?: string;
@@ -104,7 +113,7 @@ export const useRemoteControl = ({
 			// Format code with prefix for room name
 			const fullCode = targetCode.startsWith("webfsr-") ? targetCode : `webfsr-${targetCode}`;
 
-			const room = joinRoom({ appId: APP_ID }, fullCode);
+			const room = joinRoom({ appId: APP_ID, rtcConfig: RTC_CONFIG }, fullCode);
 			roomRef.current = room;
 
 			// Helper to establish connection with a peer
