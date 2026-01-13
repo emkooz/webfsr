@@ -746,9 +746,9 @@ const Dashboard = () => {
 					{latestData ? (
 						<>
 							{/* Bar Visualizations and Heartrate Section */}
-							<div className="flex gap-2 flex-shrink-0 h-[25rem]">
+							<div className="flex gap-2 shrink-0 h-100">
 								{/* Bar Visualizations */}
-								<div className="px-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm flex-grow">
+								<div className="px-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm grow">
 									<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">{sensorBars}</div>
 								</div>
 
@@ -786,7 +786,7 @@ const Dashboard = () => {
 							</div>
 
 							{/* Time Series Graph */}
-							<div className="p-1 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm mt-2 flex-grow min-h-0">
+							<div className="p-1 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm mt-2 grow min-h-0">
 								<div className="h-full">
 									<TimeSeriesGraph
 										latestData={latestData}
@@ -811,9 +811,9 @@ const Dashboard = () => {
 						<>
 							{/* Mock visualizations */}
 							{/* Mock Bar Visualizations and Heartrate Section */}
-							<div className="flex gap-2 flex-shrink-0 h-[25rem]">
+							<div className="flex gap-2 shrink-0 h-100">
 								{/* Mock Bar Visualizations */}
-								<div className="px-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm flex-grow">
+								<div className="px-4 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm grow">
 									<div className="grid grid-flow-col auto-cols-fr gap-4 h-full w-full py-2">
 										{Array.from({ length: MOCK_SENSOR_COUNT }, (_, index) => (
 											<SensorBar
@@ -857,7 +857,7 @@ const Dashboard = () => {
 							</div>
 
 							{/* Mock Time Series Graph */}
-							<div className="p-1 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm mt-2 flex-grow min-h-0">
+							<div className="p-1 border rounded-lg bg-white dark:bg-neutral-900 shadow-sm mt-2 grow min-h-0">
 								<div className="h-full">
 									<TimeSeriesGraph
 										latestData={null}

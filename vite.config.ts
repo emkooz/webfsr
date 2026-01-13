@@ -96,7 +96,4 @@ export default defineConfig({
 		},
 	},
 	base: "./",
-	server: {
-		host: true, // Expose on network
-	},
 });

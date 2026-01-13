@@ -1,4 +1,4 @@
-import { Download, History, Keyboard, Loader2, QrCode, Share, Unplug, X } from "lucide-react";
+import { Download, History, Keyboard, Loader2, QrCode, Unplug, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import MobileSensorCard from "~/components/MobileSensorCard";
 import QRScanner from "~/components/QRScanner";
