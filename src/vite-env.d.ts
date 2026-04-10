@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+/// <reference types="web-bluetooth" />
+/// <reference types="dom-serial" />
 
 declare const __BUILD_TIMESTAMP__: string;
 declare const __APP_NAME__: string;

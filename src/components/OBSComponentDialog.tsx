@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Slider } from "~/components/ui/slider";
 import { useProfileManager } from "~/lib/useProfileManager";
+import { HeartrateCurrentDisplay, HeartrateHistoryGraph, type HeartrateHistoryAxisSide, type HeartrateSample } from "./HeartrateDisplay";
 import SensorBar, { maxSensorVal } from "./SensorBar";
 import TimeSeriesGraph from "./TimeSeriesGraph";
 
@@ -55,10 +56,23 @@ interface SensorsConfig {
 }
 
 interface HeartrateConfig {
+	mode: "current" | "graph";
 	animateHeartbeat: boolean;
-	verticalAlignHeartrate: boolean;
-	fillHeartIcon: boolean;
 	showBpmText: boolean;
+	showHeartVisual: boolean;
+	showBorder: boolean;
+	timeWindow: number;
+	heartColor: string;
+	heartBackgroundColor: string;
+	textColor: string;
+	historyGradientTopColor: string;
+	historyGradientBottomColor: string;
+	historyLineColor: string;
+	historySmoothLine: boolean;
+	historyShowAxisText: boolean;
+	historyAxisLabelSide: HeartrateHistoryAxisSide;
+	historyAxisTextColor: string;
+	historyAxisTextGap: number;
 }
 
 type ComponentConfig = GraphConfig | SensorsConfig | HeartrateConfig;
@@ -109,6 +123,52 @@ const parseRgbaString = (rgbaString: string): { r: number; g: number; b: number;
 	return { r: 0, g: 0, b: 0, a: 1 };
 };
 
+const getTransparencySwatchStyle = (color: string) => {
+	const hasTransparency = parseRgbaString(color).a < 1;
+
+	return {
+		backgroundColor: color,
+		backgroundImage: hasTransparency
+			? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
+			: "none",
+		backgroundSize: hasTransparency ? "8px 8px" : "auto",
+		backgroundPosition: hasTransparency ? "0 0, 0 4px, 4px -4px, -4px 0px" : "auto",
+	};
+};
+
+type ColorFieldProps = {
+	id: string;
+	label: string;
+	color: string;
+	onChange: (color: string) => void;
+	disabled?: boolean;
+};
+
+function ColorField({ id, label, color, onChange, disabled = false }: ColorFieldProps) {
+	return (
+		<div className="space-y-2">
+			<Label htmlFor={id}>{label}</Label>
+			<div className="flex items-center gap-3">
+				<Popover>
+					<PopoverTrigger asChild>
+						<button
+							type="button"
+							className="h-10 w-10 shrink-0 rounded-md border"
+							style={getTransparencySwatchStyle(color)}
+							aria-label={`Change ${label.toLowerCase()}`}
+							disabled={disabled}
+						/>
+					</PopoverTrigger>
+					<PopoverContent className="w-auto p-3" side="right">
+						<RgbaColorPicker color={parseRgbaString(color)} onChange={(nextColor) => onChange(rgbaToString(nextColor))} />
+					</PopoverContent>
+				</Popover>
+				<Input id={id} value={color} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="font-mono text-xs" />
+			</div>
+		</div>
+	);
+}
+
 const DEFAULT_CONFIGS = {
 	graph: {
 		timeWindow: 2500,
@@ -140,11 +200,29 @@ const DEFAULT_CONFIGS = {
 		sensorLabels: [],
 	} as SensorsConfig,
 	heartrate: {
+		mode: "current",
 		animateHeartbeat: true,
-		verticalAlignHeartrate: false,
-		fillHeartIcon: true,
 		showBpmText: true,
+		showHeartVisual: true,
+		showBorder: false,
+		timeWindow: 30,
+		heartColor: "rgba(239, 68, 68, 1)",
+		heartBackgroundColor: "rgba(239, 68, 68, 0.12)",
+		textColor: "rgba(255, 255, 255, 1)",
+		historyGradientTopColor: "rgba(248, 113, 113, 0.35)",
+		historyGradientBottomColor: "rgba(248, 113, 113, 0)",
+		historyLineColor: "rgba(248, 113, 113, 1)",
+		historySmoothLine: true,
+		historyShowAxisText: true,
+		historyAxisLabelSide: "right",
+		historyAxisTextColor: "rgba(255, 255, 255, 0.72)",
+		historyAxisTextGap: 30,
 	} as HeartrateConfig,
+};
+
+const getHeartrateHistoryMs = (timeWindowSeconds: number) => {
+	const timeWindowMs = timeWindowSeconds * 1000;
+	return timeWindowMs + Math.max(5000, Math.round(timeWindowMs * 0.25));
 };
 
 export function OBSComponentDialog({ open, onOpenChange, password: passwordProp }: OBSComponentDialogProps) {
@@ -155,9 +233,12 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		...DEFAULT_CONFIGS.sensors,
 		sensorLabels: activeProfile?.sensorLabels || [],
 	}));
+	const [heartrateConfig, setHeartrateConfig] = useState<HeartrateConfig>(DEFAULT_CONFIGS.heartrate);
 	const [url, setUrl] = useState("");
 	const [copied, setCopied] = useState(false);
 	const [timeWindowInput, setTimeWindowInput] = useState<string>("");
+	const [heartrateTimeWindowInput, setHeartrateTimeWindowInput] = useState<string>("");
+	const [mockHeartrateHistory, setMockHeartrateHistory] = useState<HeartrateSample[]>([]);
 
 	// Update sensor labels when dialog opens or active profile changes
 	useEffect(() => {
@@ -180,7 +261,13 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		}
 	}, [open, graphConfig.timeWindow]);
 
-	const config = selectedComponent === "graph" ? graphConfig : selectedComponent === "sensors" ? sensorsConfig : DEFAULT_CONFIGS.heartrate;
+	useEffect(() => {
+		if (open) {
+			setHeartrateTimeWindowInput(heartrateConfig.timeWindow.toString());
+		}
+	}, [open, heartrateConfig.timeWindow]);
+
+	const config = selectedComponent === "graph" ? graphConfig : selectedComponent === "sensors" ? sensorsConfig : heartrateConfig;
 
 	const previewContainerRef = useRef<HTMLDivElement>(null);
 	const sensorsInnerRef = useRef<HTMLDivElement>(null);
@@ -197,6 +284,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		return Math.round(clamped * maxSensorVal);
 	});
 	const mockThresholds = Array.from({ length: 6 }, () => Math.round(maxSensorVal * 0.6));
+	const mockHeartrate = mockHeartrateHistory.length > 0 ? mockHeartrateHistory[mockHeartrateHistory.length - 1].heartrate : 78;
 
 	const mockLabels = Array.from({ length: 6 }, (_, index) => {
 		const configuredLabels = (config as SensorsConfig).sensorLabels || [];
@@ -209,6 +297,24 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		}, 50);
 		return () => clearInterval(interval);
 	}, []);
+
+	useEffect(() => {
+		const createMockHeartrateSample = () => {
+			const now = Date.now();
+			const phase = now / 1000;
+			const heartrate = Math.max(56, Math.round(78 + Math.sin(phase * 0.22) * 10 + Math.sin(phase * 0.08 + 0.8) * 3));
+
+			setMockHeartrateHistory((prev) => {
+				const next = [...prev, { heartrate, timestamp: now }];
+				const cutoff = now - getHeartrateHistoryMs(heartrateConfig.timeWindow);
+				return next.filter((sample) => sample.timestamp >= cutoff);
+			});
+		};
+
+		createMockHeartrateSample();
+		const interval = window.setInterval(createMockHeartrateSample, 1000);
+		return () => window.clearInterval(interval);
+	}, [heartrateConfig.timeWindow]);
 
 	// Scale sensors preview to fit container
 	useEffect(() => {
@@ -257,6 +363,8 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 	const isGraphConfig = (c: ComponentConfig): c is GraphConfig =>
 		c != null && typeof (c as GraphConfig).timeWindow === "number" && Array.isArray((c as GraphConfig).sensorColors);
 	const isSensorsConfig = (c: ComponentConfig): c is SensorsConfig => c != null && Array.isArray((c as SensorsConfig).sensorColors);
+	const isHeartrateConfig = (c: ComponentConfig): c is HeartrateConfig =>
+		c != null && ((c as HeartrateConfig).mode === "current" || (c as HeartrateConfig).mode === "graph");
 
 	const generateUrl = () => {
 		const baseUrl = `${window.location.origin}/obs/${selectedComponent}/`;
@@ -327,6 +435,53 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 			) {
 				params.set("sensorLabels", encodeSensorLabelsForUrl(sensorsConfig.sensorLabels));
 			}
+		} else if (selectedComponent === "heartrate" && isHeartrateConfig(config)) {
+			const heartrateConfig = config;
+			if (heartrateConfig.mode !== DEFAULT_CONFIGS.heartrate.mode) {
+				params.set("mode", heartrateConfig.mode);
+			}
+			if (!heartrateConfig.animateHeartbeat) params.set("animateHeartbeat", "false");
+			if (!heartrateConfig.showBpmText) params.set("showBpmText", "false");
+			if (!heartrateConfig.showHeartVisual) params.set("showHeart", "false");
+			if (heartrateConfig.showBorder !== DEFAULT_CONFIGS.heartrate.showBorder) {
+				params.set("border", heartrateConfig.showBorder ? "true" : "false");
+			}
+			if (heartrateConfig.timeWindow !== DEFAULT_CONFIGS.heartrate.timeWindow) {
+				params.set("window", heartrateConfig.timeWindow.toString());
+			}
+			if (heartrateConfig.heartColor !== DEFAULT_CONFIGS.heartrate.heartColor) {
+				params.set("heartColor", heartrateConfig.heartColor);
+			}
+			if (heartrateConfig.heartBackgroundColor !== DEFAULT_CONFIGS.heartrate.heartBackgroundColor) {
+				params.set("heartBgColor", heartrateConfig.heartBackgroundColor);
+			}
+			if (heartrateConfig.textColor !== DEFAULT_CONFIGS.heartrate.textColor) {
+				params.set("textColor", heartrateConfig.textColor);
+			}
+			if (heartrateConfig.historyGradientTopColor !== DEFAULT_CONFIGS.heartrate.historyGradientTopColor) {
+				params.set("gradientTopColor", heartrateConfig.historyGradientTopColor);
+			}
+			if (heartrateConfig.historyGradientBottomColor !== DEFAULT_CONFIGS.heartrate.historyGradientBottomColor) {
+				params.set("gradientBottomColor", heartrateConfig.historyGradientBottomColor);
+			}
+			if (heartrateConfig.historyLineColor !== DEFAULT_CONFIGS.heartrate.historyLineColor) {
+				params.set("lineColor", heartrateConfig.historyLineColor);
+			}
+			if (heartrateConfig.historySmoothLine !== DEFAULT_CONFIGS.heartrate.historySmoothLine) {
+				params.set("smoothLine", heartrateConfig.historySmoothLine ? "true" : "false");
+			}
+			if (heartrateConfig.historyShowAxisText !== DEFAULT_CONFIGS.heartrate.historyShowAxisText) {
+				params.set("showAxisText", heartrateConfig.historyShowAxisText ? "true" : "false");
+			}
+			if (heartrateConfig.historyAxisLabelSide !== DEFAULT_CONFIGS.heartrate.historyAxisLabelSide) {
+				params.set("axisSide", heartrateConfig.historyAxisLabelSide);
+			}
+			if (heartrateConfig.historyAxisTextColor !== DEFAULT_CONFIGS.heartrate.historyAxisTextColor) {
+				params.set("axisTextColor", heartrateConfig.historyAxisTextColor);
+			}
+			if (heartrateConfig.historyAxisTextGap !== DEFAULT_CONFIGS.heartrate.historyAxisTextGap) {
+				params.set("axisTextGap", heartrateConfig.historyAxisTextGap.toString());
+			}
 		}
 
 		const finalUrl = `${baseUrl}?${params.toString()}`;
@@ -339,6 +494,10 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 
 	const updateSensorsConfig = (updates: Partial<SensorsConfig>) => {
 		setSensorsConfig((prev) => ({ ...prev, ...updates }));
+	};
+
+	const updateHeartrateConfig = (updates: Partial<HeartrateConfig>) => {
+		setHeartrateConfig((prev) => ({ ...prev, ...updates }));
 	};
 
 	const getSelectedSensorIndices = () => {
@@ -429,6 +588,57 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 				if (sensorLabels) sensorsConfig.sensorLabels = decodeSensorLabelsFromUrl(sensorLabels);
 
 				setSensorsConfig(sensorsConfig);
+			} else if (selectedComponent === "heartrate") {
+				const heartrateConfig = { ...DEFAULT_CONFIGS.heartrate };
+				const mode = params.get("mode");
+				if (mode === "current" || mode === "graph") heartrateConfig.mode = mode;
+				if (mode === "historical") heartrateConfig.mode = "graph";
+
+				heartrateConfig.animateHeartbeat = params.get("animateHeartbeat") !== "false";
+				heartrateConfig.showBpmText = params.get("showBpmText") !== "false";
+				heartrateConfig.showHeartVisual = params.get("showHeart") !== "false";
+				heartrateConfig.showBorder =
+					params.get("border") == null ? DEFAULT_CONFIGS.heartrate.showBorder : params.get("border") !== "false";
+
+				const heartrateWindow = params.get("window");
+				if (heartrateWindow) heartrateConfig.timeWindow = Number(heartrateWindow);
+
+				const heartColor = params.get("heartColor");
+				if (heartColor) heartrateConfig.heartColor = heartColor;
+
+				const heartBackgroundColor = params.get("heartBgColor");
+				if (heartBackgroundColor) heartrateConfig.heartBackgroundColor = heartBackgroundColor;
+
+				const textColor = params.get("textColor");
+				if (textColor) heartrateConfig.textColor = textColor;
+
+				const historyGradientTopColor = params.get("gradientTopColor");
+				if (historyGradientTopColor) heartrateConfig.historyGradientTopColor = historyGradientTopColor;
+
+				const historyGradientBottomColor = params.get("gradientBottomColor");
+				if (historyGradientBottomColor) heartrateConfig.historyGradientBottomColor = historyGradientBottomColor;
+
+				const historyLineColor = params.get("lineColor");
+				if (historyLineColor) heartrateConfig.historyLineColor = historyLineColor;
+
+				heartrateConfig.historySmoothLine =
+					params.get("smoothLine") == null ? DEFAULT_CONFIGS.heartrate.historySmoothLine : params.get("smoothLine") !== "false";
+
+				heartrateConfig.historyShowAxisText =
+					params.get("showAxisText") == null ? DEFAULT_CONFIGS.heartrate.historyShowAxisText : params.get("showAxisText") !== "false";
+
+				const historyAxisSide = params.get("axisSide");
+				if (historyAxisSide === "left" || historyAxisSide === "right") {
+					heartrateConfig.historyAxisLabelSide = historyAxisSide;
+				}
+
+				const historyAxisTextColor = params.get("axisTextColor");
+				if (historyAxisTextColor) heartrateConfig.historyAxisTextColor = historyAxisTextColor;
+
+				const historyAxisTextGap = params.get("axisTextGap");
+				if (historyAxisTextGap) heartrateConfig.historyAxisTextGap = Math.max(0, Number(historyAxisTextGap) || 0);
+
+				setHeartrateConfig(heartrateConfig);
 			}
 		} catch (err) {
 			console.error("Failed to parse URL:", err);
@@ -504,13 +714,39 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 			);
 		}
 
-		// Heartrate component preview (placeholder)
+		const heartrateConfig = config as HeartrateConfig;
+
 		return (
-			<div className="w-full h-full bg-black overflow-hidden flex items-center justify-center">
-				<div className="text-white text-center">
-					<div className="text-lg">Heartrate Monitor</div>
-					<div className="text-sm text-gray-400">Not currently implemented</div>
-				</div>
+			<div className="w-full h-full bg-black overflow-hidden">
+				{heartrateConfig.mode === "graph" ? (
+					<div className="h-full w-full">
+						<HeartrateHistoryGraph
+							samples={mockHeartrateHistory}
+							timeWindowSeconds={heartrateConfig.timeWindow}
+							showBorder={heartrateConfig.showBorder}
+							gradientTopColor={heartrateConfig.historyGradientTopColor}
+							gradientBottomColor={heartrateConfig.historyGradientBottomColor}
+							lineColor={heartrateConfig.historyLineColor}
+							smoothLine={heartrateConfig.historySmoothLine}
+							showAxisText={heartrateConfig.historyShowAxisText}
+							axisLabelSide={heartrateConfig.historyAxisLabelSide}
+							axisTextColor={heartrateConfig.historyAxisTextColor}
+							axisTextGap={heartrateConfig.historyAxisTextGap}
+						/>
+					</div>
+				) : (
+					<HeartrateCurrentDisplay
+						heartrate={mockHeartrate}
+						animateHeartbeat={heartrateConfig.animateHeartbeat}
+						showBpmText={heartrateConfig.showBpmText}
+						showHeartVisual={heartrateConfig.showHeartVisual}
+						showBorder={heartrateConfig.showBorder}
+						heartColor={heartrateConfig.heartColor}
+						heartBackgroundColor={heartrateConfig.heartBackgroundColor}
+						textColor={heartrateConfig.textColor}
+						isLive={true}
+					/>
+				)}
 			</div>
 		);
 	};
@@ -1091,6 +1327,282 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 												Use Single Color
 											</Label>
 										</div>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{selectedComponent === "heartrate" && (
+							<div className="flex flex-wrap gap-6 justify-center items-start">
+								<div className="space-y-4 min-w-[280px] max-w-[360px]">
+									<Label className="text-lg font-semibold">Heartrate Display</Label>
+									<div className="space-y-3">
+										<div className="space-y-2">
+											<Label>Mode</Label>
+											<Select
+												value={(config as HeartrateConfig).mode}
+												onValueChange={(value: HeartrateConfig["mode"]) => updateHeartrateConfig({ mode: value })}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="current">Current BPM</SelectItem>
+													<SelectItem value="graph">Graph</SelectItem>
+												</SelectContent>
+											</Select>
+										</div>
+
+										{(config as HeartrateConfig).mode === "graph" ? (
+											<div className="space-y-2">
+												<Label>Time Window (s)</Label>
+												<Input
+													type="number"
+													step="1"
+													value={heartrateTimeWindowInput}
+													onChange={(e) => setHeartrateTimeWindowInput(e.target.value)}
+													onBlur={() => {
+														const numValue = Number(heartrateTimeWindowInput);
+														if (heartrateTimeWindowInput === "" || Number.isNaN(numValue)) {
+															updateHeartrateConfig({ timeWindow: DEFAULT_CONFIGS.heartrate.timeWindow });
+															setHeartrateTimeWindowInput(DEFAULT_CONFIGS.heartrate.timeWindow.toString());
+														} else {
+															updateHeartrateConfig({ timeWindow: Math.max(5, numValue) });
+														}
+													}}
+													onKeyDown={(e) => {
+														const currentValue = Number(heartrateTimeWindowInput) || DEFAULT_CONFIGS.heartrate.timeWindow;
+
+														if (e.key === "Enter") {
+															e.preventDefault();
+															const numValue = Number(heartrateTimeWindowInput);
+															if (heartrateTimeWindowInput === "" || Number.isNaN(numValue)) {
+																updateHeartrateConfig({ timeWindow: DEFAULT_CONFIGS.heartrate.timeWindow });
+																setHeartrateTimeWindowInput(DEFAULT_CONFIGS.heartrate.timeWindow.toString());
+															} else {
+																updateHeartrateConfig({ timeWindow: Math.max(5, numValue) });
+															}
+															e.currentTarget.blur();
+														} else if (e.key === "ArrowUp") {
+															e.preventDefault();
+															const newValue = currentValue + 1;
+															setHeartrateTimeWindowInput(newValue.toString());
+															updateHeartrateConfig({ timeWindow: newValue });
+														} else if (e.key === "ArrowDown") {
+															e.preventDefault();
+															const newValue = Math.max(5, currentValue - 1);
+															setHeartrateTimeWindowInput(newValue.toString());
+															updateHeartrateConfig({ timeWindow: newValue });
+														}
+													}}
+												/>
+											</div>
+										) : null}
+									</div>
+								</div>
+
+								<div className="space-y-4 min-w-[280px] max-w-[360px]">
+									<Label className="text-lg font-semibold">Display Options</Label>
+									<div className="space-y-3">
+										{(config as HeartrateConfig).mode === "current" ? (
+											<>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="hrAnimateHeartbeat"
+														checked={(config as HeartrateConfig).animateHeartbeat}
+														onCheckedChange={(checked) =>
+															updateHeartrateConfig({
+																animateHeartbeat: Boolean(checked),
+															})
+														}
+													/>
+													<Label htmlFor="hrAnimateHeartbeat" className="cursor-pointer">
+														Animate heartbeat
+													</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="hrShowHeartVisual"
+														checked={(config as HeartrateConfig).showHeartVisual}
+														onCheckedChange={(checked) =>
+															updateHeartrateConfig({
+																showHeartVisual: Boolean(checked),
+															})
+														}
+													/>
+													<Label htmlFor="hrShowHeartVisual" className="cursor-pointer">
+														Show heart visual
+													</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="hrShowBpmText"
+														checked={(config as HeartrateConfig).showBpmText}
+														onCheckedChange={(checked) =>
+															updateHeartrateConfig({
+																showBpmText: Boolean(checked),
+															})
+														}
+													/>
+													<Label htmlFor="hrShowBpmText" className="cursor-pointer">
+														Show BPM label
+													</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="hrShowBorder"
+														checked={(config as HeartrateConfig).showBorder}
+														onCheckedChange={(checked) =>
+															updateHeartrateConfig({
+																showBorder: Boolean(checked),
+															})
+														}
+													/>
+													<Label htmlFor="hrShowBorder" className="cursor-pointer">
+														Show border
+													</Label>
+												</div>
+											</>
+										) : (
+											<>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="hrHistoryShowBorder"
+														checked={(config as HeartrateConfig).showBorder}
+														onCheckedChange={(checked) =>
+															updateHeartrateConfig({
+																showBorder: Boolean(checked),
+															})
+														}
+													/>
+													<Label htmlFor="hrHistoryShowBorder" className="cursor-pointer">
+														Show border
+													</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="hrHistorySmoothLine"
+														checked={(config as HeartrateConfig).historySmoothLine}
+														onCheckedChange={(checked) =>
+															updateHeartrateConfig({
+																historySmoothLine: Boolean(checked),
+															})
+														}
+													/>
+													<Label htmlFor="hrHistorySmoothLine" className="cursor-pointer">
+														Smooth line over time
+													</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="hrHistoryShowAxisText"
+														checked={(config as HeartrateConfig).historyShowAxisText}
+														onCheckedChange={(checked) =>
+															updateHeartrateConfig({
+																historyShowAxisText: Boolean(checked),
+															})
+														}
+													/>
+													<Label htmlFor="hrHistoryShowAxisText" className="cursor-pointer">
+														Show Y-axis text
+													</Label>
+												</div>
+												<div className="space-y-2">
+													<Label>Y-axis side</Label>
+													<Select
+														value={(config as HeartrateConfig).historyAxisLabelSide}
+														onValueChange={(value: HeartrateHistoryAxisSide) =>
+															updateHeartrateConfig({ historyAxisLabelSide: value })
+														}
+														disabled={!(config as HeartrateConfig).historyShowAxisText}
+													>
+														<SelectTrigger className="w-full">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															<SelectItem value="left">Left</SelectItem>
+															<SelectItem value="right">Right</SelectItem>
+														</SelectContent>
+													</Select>
+												</div>
+												<div className="space-y-3">
+													<div className="flex items-center justify-between gap-4">
+														<Label>Y-axis gap</Label>
+														<span className="text-sm text-muted-foreground tabular-nums">
+															{(config as HeartrateConfig).historyAxisTextGap}px
+														</span>
+													</div>
+													<Slider
+														value={[(config as HeartrateConfig).historyAxisTextGap]}
+														onValueChange={([value]) =>
+															updateHeartrateConfig({
+																historyAxisTextGap: value ?? DEFAULT_CONFIGS.heartrate.historyAxisTextGap,
+															})
+														}
+														min={0}
+														max={48}
+														step={1}
+														disabled={!(config as HeartrateConfig).historyShowAxisText}
+													/>
+												</div>
+											</>
+										)}
+									</div>
+								</div>
+
+								<div className="space-y-4 min-w-[280px] max-w-[360px]">
+									<Label className="text-lg font-semibold">Colors</Label>
+									<div className="space-y-4">
+										{(config as HeartrateConfig).mode === "current" ? (
+											<>
+												<ColorField
+													id="hrHeartColor"
+													label="Heart Color"
+													color={(config as HeartrateConfig).heartColor}
+													onChange={(color) => updateHeartrateConfig({ heartColor: color })}
+												/>
+												<ColorField
+													id="hrHeartBackgroundColor"
+													label="Heart Background"
+													color={(config as HeartrateConfig).heartBackgroundColor}
+													onChange={(color) => updateHeartrateConfig({ heartBackgroundColor: color })}
+												/>
+												<ColorField
+													id="hrTextColor"
+													label="Text Color"
+													color={(config as HeartrateConfig).textColor}
+													onChange={(color) => updateHeartrateConfig({ textColor: color })}
+												/>
+											</>
+										) : (
+											<>
+												<ColorField
+													id="hrHistoryGradientTopColor"
+													label="Gradient Top"
+													color={(config as HeartrateConfig).historyGradientTopColor}
+													onChange={(color) => updateHeartrateConfig({ historyGradientTopColor: color })}
+												/>
+												<ColorField
+													id="hrHistoryGradientBottomColor"
+													label="Gradient Bottom"
+													color={(config as HeartrateConfig).historyGradientBottomColor}
+													onChange={(color) => updateHeartrateConfig({ historyGradientBottomColor: color })}
+												/>
+												<ColorField
+													id="hrHistoryLineColor"
+													label="Line Color"
+													color={(config as HeartrateConfig).historyLineColor}
+													onChange={(color) => updateHeartrateConfig({ historyLineColor: color })}
+												/>
+												<ColorField
+													id="hrHistoryAxisTextColor"
+													label="Y-Axis Text"
+													color={(config as HeartrateConfig).historyAxisTextColor}
+													onChange={(color) => updateHeartrateConfig({ historyAxisTextColor: color })}
+													disabled={!(config as HeartrateConfig).historyShowAxisText}
+												/>
+											</>
+										)}
 									</div>
 								</div>
 							</div>

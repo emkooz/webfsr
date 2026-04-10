@@ -53,9 +53,9 @@
 		"@vite-pwa/assets-generator": "^1.0.2",
 		"@vitejs/plugin-react": "^5.1.2",
 		"globals": "^17.0.0",
-		"oxfmt": "^0.21.0",
-		"oxlint": "^1.36.0",
-		"oxlint-tsgolint": "^0.10.1",
+		"oxfmt": "^0.44.0",
+		"oxlint": "^1.59.0",
+		"oxlint-tsgolint": "^0.20.0",
 		"typescript": "~5.9.3",
 		"vite": "^7.3.0",
 		"vite-plugin-pwa": "^1.2.0"

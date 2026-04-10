@@ -8,7 +8,7 @@ export type DesktopMessage =
 	| { type: "values"; payload: { values: number[]; timestamp: number } }
 	| { type: "ping" };
 
-export interface ProfileSyncPayload {
+export type ProfileSyncPayload = {
 	thresholds: number[];
 	sensorLabels: string[];
 	sensorColors: string[];
@@ -18,7 +18,7 @@ export interface ProfileSyncPayload {
 	singleBarColor: string;
 	isLocked: boolean;
 	theme: "light" | "dark";
-}
+};
 
 // Mobile → Desktop
 export type MobileMessage =

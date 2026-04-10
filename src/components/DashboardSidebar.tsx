@@ -657,7 +657,6 @@ export type HeartRateMonitorSectionProps = {
 	connectedHR: boolean;
 	isBluetoothSupported: boolean;
 	heartrateDevice?: BluetoothDevice | null;
-	heartrateData?: { heartrate: number } | null;
 };
 
 export function HeartRateMonitorSection({
@@ -666,7 +665,6 @@ export function HeartRateMonitorSection({
 	connectedHR,
 	isBluetoothSupported,
 	heartrateDevice,
-	heartrateData,
 }: HeartRateMonitorSectionProps) {
 	const [isHeartrateOpen, setIsHeartrateOpen] = useState<boolean>(true);
 
@@ -685,9 +683,7 @@ export function HeartRateMonitorSection({
 					{heartrateDevice && (
 						<div className="text-xs">
 							<div>Connected to:</div>
-							<div className="font-medium">
-								{heartrateDevice.name || "Unknown device"} {heartrateData?.heartrate ? `(${heartrateData.heartrate} bpm)` : ""}
-							</div>
+							<div className="font-medium">{heartrateDevice.name || "Unknown device"}</div>
 						</div>
 					)}
 

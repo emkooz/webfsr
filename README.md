@@ -64,6 +64,7 @@ List of the current routes:
 
 - `/obs/sensors/`
 - `/obs/graph/`
+- `/obs/heartrate/`
 
 ## Future TODO
 

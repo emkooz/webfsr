@@ -2,8 +2,11 @@ import OBSWebSocket from "obs-websocket-js";
 import { useEffect, useRef, useState } from "react";
 
 export interface ObsBroadcastPayload {
-	values: number[];
-	thresholds: number[];
+	values?: number[];
+	thresholds?: number[];
+	heartrate?: number;
+	heartrateTimestamp?: number;
+	heartrateConnected?: boolean;
 }
 
 // Minimal JSON types compatible with obs-websocket's JsonObject
@@ -92,8 +95,15 @@ export const useOBS = () => {
 		if (!obs || !isConnected) return;
 
 		try {
+			const eventData: JsonObject = {};
+			if (payload.values) eventData.values = payload.values;
+			if (payload.thresholds) eventData.thresholds = payload.thresholds;
+			if (typeof payload.heartrate === "number") eventData.heartrate = payload.heartrate;
+			if (typeof payload.heartrateTimestamp === "number") eventData.heartrateTimestamp = payload.heartrateTimestamp;
+			if (typeof payload.heartrateConnected === "boolean") eventData.heartrateConnected = payload.heartrateConnected;
+
 			await obs.call("BroadcastCustomEvent", {
-				eventData: { values: payload.values, thresholds: payload.thresholds } as JsonObject,
+				eventData,
 			});
 		} catch (err) {
 			console.error("OBS broadcast failed", err);

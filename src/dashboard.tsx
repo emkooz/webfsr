@@ -17,7 +17,7 @@ import { Button } from "~/components/ui/button";
 import { CustomScrollArea } from "~/components/ui/custom-scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import { useHeartrateMonitor } from "~/lib/useHeartrateMonitor";
-import { useOBS } from "~/lib/useOBS";
+import { type ObsBroadcastPayload, useOBS } from "~/lib/useOBS";
 import { type ProfileData, useProfileManager } from "~/lib/useProfileManager";
 import { usePWAInstall } from "~/lib/usePWAInstall";
 import { useLastCode, useRemoteControl } from "~/lib/useRemoteControl";
@@ -108,7 +108,7 @@ const Dashboard = () => {
 
 				if (now - lastBroadcastAtRef.current >= minIntervalMs) {
 					lastBroadcastAtRef.current = now;
-					void broadcast({ values, thresholds });
+					broadcastToOBS({ values, thresholds });
 				}
 			}
 
@@ -207,6 +207,9 @@ const Dashboard = () => {
 	} = useOBS();
 	const lastBroadcastAtRef = useRef<number>(0);
 	const lastRemoteBroadcastAtRef = useRef<number>(0);
+	const broadcastToOBS = useStableCallback((payload: ObsBroadcastPayload) => {
+		void broadcast(payload);
+	});
 
 	// Mobile control connection handler
 	const handleRemoteMessage = useStableCallback((message: DesktopMessage | MobileMessage) => {
@@ -312,6 +315,16 @@ const Dashboard = () => {
 			document.head.appendChild(style);
 		}
 	}, []);
+
+	useEffect(() => {
+		if (!obsConnected) return;
+
+		broadcastToOBS({
+			heartrateConnected: connectedHR,
+			heartrate: heartrateData?.heartrate,
+			heartrateTimestamp: heartrateData?.timestamp,
+		});
+	}, [broadcastToOBS, connectedHR, heartrateData?.heartrate, heartrateData?.timestamp, obsConnected]);
 
 	// Handle heart rate connection toggle
 	const handleHeartrateToggle = useStableCallback(async () => {
@@ -695,7 +708,6 @@ const Dashboard = () => {
 								connectedHR={connectedHR}
 								isBluetoothSupported={isBluetoothSupported}
 								heartrateDevice={heartrateDevice}
-								heartrateData={heartrateData}
 							/>
 
 							<VisualSettingsSection
@@ -847,10 +859,26 @@ const Dashboard = () => {
 											className={`flex ${heartrateSettings.verticalAlignHeartrate ? "flex-col" : "flex-row"} items-center gap-4 w-full h-full justify-center`}
 										>
 											<Heart
-												className={`${heartrateSettings.verticalAlignHeartrate ? "size-24" : "size-20"} text-muted-foreground`}
-												fill="none"
+												className={`${heartrateSettings.verticalAlignHeartrate ? "size-24" : "size-20"} ${connectedHR ? "text-red-500" : "text-muted-foreground"}`}
+												fill={heartrateSettings.fillHeartIcon ? (connectedHR ? "currentColor" : "none") : "none"}
+												style={connectedHR && heartrateData ? heartBeatStyle : {}}
 											/>
-											<p className="text-muted-foreground text-center text-lg">Heartrate monitor not connected</p>
+											{connectedHR && heartrateData ? (
+												<div className="text-center">
+													<p className={`font-bold ${heartrateSettings.showBpmText ? "text-5xl" : "text-7xl"} leading-tight`}>
+														{heartrateData.heartrate}
+													</p>
+													{heartrateSettings.showBpmText && <p className="text-lg text-muted-foreground mt-1">BPM</p>}
+												</div>
+											) : (
+												<p className="text-muted-foreground text-center text-lg">
+													{isBluetoothSupported
+														? connectedHR
+															? "Waiting for heartrate data..."
+															: "Heartrate monitor not connected"
+														: "WebBluetooth not supported"}
+												</p>
+											)}
 										</div>
 									</div>
 								)}
