@@ -52,6 +52,12 @@ interface SensorsConfig {
 	visibleSensors: string;
 	sensorBackgroundColor: string;
 	sensorLabelColor: string;
+	labelTextSize: number;
+	labelTextColor: string;
+	thresholdTextSize: number;
+	thresholdTextColor: string;
+	valueTextSize: number;
+	valueTextColor: string;
 	sensorLabels: string[];
 }
 
@@ -62,6 +68,7 @@ interface HeartrateConfig {
 	showHeartVisual: boolean;
 	showBorder: boolean;
 	timeWindow: number;
+	containerBackgroundColor: string;
 	heartColor: string;
 	heartBackgroundColor: string;
 	textColor: string;
@@ -136,6 +143,11 @@ const getTransparencySwatchStyle = (color: string) => {
 	};
 };
 
+const clampTextSize = (value: number, fallback: number) => {
+	if (!Number.isFinite(value)) return fallback;
+	return Math.min(32, Math.max(8, Math.round(value)));
+};
+
 type ColorFieldProps = {
 	id: string;
 	label: string;
@@ -169,6 +181,30 @@ function ColorField({ id, label, color, onChange, disabled = false }: ColorField
 	);
 }
 
+type TextStyleFieldProps = {
+	id: string;
+	label: string;
+	size: number;
+	color: string;
+	onSizeChange: (size: number) => void;
+	onColorChange: (color: string) => void;
+};
+
+function TextStyleField({ id, label, size, color, onSizeChange, onColorChange }: TextStyleFieldProps) {
+	return (
+		<div className="space-y-3 rounded-md border p-3">
+			<div className="flex items-center justify-between gap-3">
+				<Label htmlFor={`${id}-size`} className="text-sm">
+					{label}
+				</Label>
+				<span className="text-xs text-muted-foreground">{size}px</span>
+			</div>
+			<Slider id={`${id}-size`} value={[size]} min={8} max={32} step={1} onValueChange={(value) => onSizeChange(value[0] ?? size)} />
+			<ColorField id={`${id}-color`} label="Color" color={color} onChange={onColorChange} />
+		</div>
+	);
+}
+
 const DEFAULT_CONFIGS = {
 	graph: {
 		timeWindow: 2500,
@@ -197,6 +233,12 @@ const DEFAULT_CONFIGS = {
 		visibleSensors: "all",
 		sensorBackgroundColor: "#ffffff",
 		sensorLabelColor: "rgba(255, 255, 255, 0.9)",
+		labelTextSize: 12,
+		labelTextColor: "rgba(255, 255, 255, 0.9)",
+		thresholdTextSize: 11,
+		thresholdTextColor: "rgba(0, 0, 0, 1)",
+		valueTextSize: 12,
+		valueTextColor: "rgba(0, 0, 0, 1)",
 		sensorLabels: [],
 	} as SensorsConfig,
 	heartrate: {
@@ -206,6 +248,7 @@ const DEFAULT_CONFIGS = {
 		showHeartVisual: true,
 		showBorder: false,
 		timeWindow: 30,
+		containerBackgroundColor: "rgba(0, 0, 0, 0.35)",
 		heartColor: "rgba(239, 68, 68, 1)",
 		heartBackgroundColor: "rgba(239, 68, 68, 0.12)",
 		textColor: "rgba(255, 255, 255, 1)",
@@ -284,7 +327,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		return Math.round(clamped * maxSensorVal);
 	});
 	const mockThresholds = Array.from({ length: 6 }, () => Math.round(maxSensorVal * 0.6));
-	const mockHeartrate = mockHeartrateHistory.length > 0 ? mockHeartrateHistory[mockHeartrateHistory.length - 1].heartrate : 78;
+	const mockHeartrate = mockHeartrateHistory.length > 0 ? mockHeartrateHistory[mockHeartrateHistory.length - 1].heartrate : 100;
 
 	const mockLabels = Array.from({ length: 6 }, (_, index) => {
 		const configuredLabels = (config as SensorsConfig).sensorLabels || [];
@@ -302,7 +345,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		const createMockHeartrateSample = () => {
 			const now = Date.now();
 			const phase = now / 1000;
-			const heartrate = Math.max(56, Math.round(78 + Math.sin(phase * 0.22) * 10 + Math.sin(phase * 0.08 + 0.8) * 3));
+			const heartrate = Math.min(140, Math.max(60, Math.round(100 + Math.sin(phase * 0.28) * 32 + Math.sin(phase * 0.11 + 0.8) * 8)));
 
 			setMockHeartrateHistory((prev) => {
 				const next = [...prev, { heartrate, timestamp: now }];
@@ -312,7 +355,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 		};
 
 		createMockHeartrateSample();
-		const interval = window.setInterval(createMockHeartrateSample, 1000);
+		const interval = window.setInterval(createMockHeartrateSample, 850);
 		return () => window.clearInterval(interval);
 	}, [heartrateConfig.timeWindow]);
 
@@ -425,8 +468,23 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 			if (sensorsConfig.sensorBackgroundColor && sensorsConfig.sensorBackgroundColor !== DEFAULT_CONFIGS.sensors.sensorBackgroundColor) {
 				params.set("sensorBg", sensorsConfig.sensorBackgroundColor);
 			}
-			if (sensorsConfig.sensorLabelColor && sensorsConfig.sensorLabelColor !== DEFAULT_CONFIGS.sensors.sensorLabelColor) {
-				params.set("labelColor", sensorsConfig.sensorLabelColor);
+			if (sensorsConfig.labelTextColor && sensorsConfig.labelTextColor !== DEFAULT_CONFIGS.sensors.labelTextColor) {
+				params.set("labelTextColor", sensorsConfig.labelTextColor);
+			}
+			if (sensorsConfig.labelTextSize !== DEFAULT_CONFIGS.sensors.labelTextSize) {
+				params.set("labelTextSize", sensorsConfig.labelTextSize.toString());
+			}
+			if (sensorsConfig.thresholdTextColor !== DEFAULT_CONFIGS.sensors.thresholdTextColor) {
+				params.set("thresholdTextColor", sensorsConfig.thresholdTextColor);
+			}
+			if (sensorsConfig.thresholdTextSize !== DEFAULT_CONFIGS.sensors.thresholdTextSize) {
+				params.set("thresholdTextSize", sensorsConfig.thresholdTextSize.toString());
+			}
+			if (sensorsConfig.valueTextColor !== DEFAULT_CONFIGS.sensors.valueTextColor) {
+				params.set("valueTextColor", sensorsConfig.valueTextColor);
+			}
+			if (sensorsConfig.valueTextSize !== DEFAULT_CONFIGS.sensors.valueTextSize) {
+				params.set("valueTextSize", sensorsConfig.valueTextSize.toString());
 			}
 			if (
 				sensorsConfig.sensorLabels &&
@@ -448,6 +506,9 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 			}
 			if (heartrateConfig.timeWindow !== DEFAULT_CONFIGS.heartrate.timeWindow) {
 				params.set("window", heartrateConfig.timeWindow.toString());
+			}
+			if (heartrateConfig.containerBackgroundColor !== DEFAULT_CONFIGS.heartrate.containerBackgroundColor) {
+				params.set("containerBgColor", heartrateConfig.containerBackgroundColor);
 			}
 			if (heartrateConfig.heartColor !== DEFAULT_CONFIGS.heartrate.heartColor) {
 				params.set("heartColor", heartrateConfig.heartColor);
@@ -581,8 +642,32 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 				const sensorBg = params.get("sensorBg");
 				if (sensorBg) sensorsConfig.sensorBackgroundColor = sensorBg;
 
-				const labelColor = params.get("labelColor");
-				if (labelColor) sensorsConfig.sensorLabelColor = labelColor;
+				const labelTextColor = params.get("labelTextColor") || params.get("labelColor");
+				if (labelTextColor) {
+					sensorsConfig.labelTextColor = labelTextColor;
+					sensorsConfig.sensorLabelColor = labelTextColor;
+				}
+
+				const labelTextSize = params.get("labelTextSize");
+				if (labelTextSize) {
+					sensorsConfig.labelTextSize = clampTextSize(Number(labelTextSize), DEFAULT_CONFIGS.sensors.labelTextSize);
+				}
+
+				const thresholdTextColor = params.get("thresholdTextColor");
+				if (thresholdTextColor) sensorsConfig.thresholdTextColor = thresholdTextColor;
+
+				const thresholdTextSize = params.get("thresholdTextSize");
+				if (thresholdTextSize) {
+					sensorsConfig.thresholdTextSize = clampTextSize(Number(thresholdTextSize), DEFAULT_CONFIGS.sensors.thresholdTextSize);
+				}
+
+				const valueTextColor = params.get("valueTextColor");
+				if (valueTextColor) sensorsConfig.valueTextColor = valueTextColor;
+
+				const valueTextSize = params.get("valueTextSize");
+				if (valueTextSize) {
+					sensorsConfig.valueTextSize = clampTextSize(Number(valueTextSize), DEFAULT_CONFIGS.sensors.valueTextSize);
+				}
 
 				const sensorLabels = params.get("sensorLabels");
 				if (sensorLabels) sensorsConfig.sensorLabels = decodeSensorLabelsFromUrl(sensorLabels);
@@ -602,6 +687,9 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 
 				const heartrateWindow = params.get("window");
 				if (heartrateWindow) heartrateConfig.timeWindow = Number(heartrateWindow);
+
+				const containerBackgroundColor = params.get("containerBgColor");
+				if (containerBackgroundColor) heartrateConfig.containerBackgroundColor = containerBackgroundColor;
 
 				const heartColor = params.get("heartColor");
 				if (heartColor) heartrateConfig.heartColor = heartColor;
@@ -698,6 +786,12 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 						hideControls={sensorsConfig.hideControls}
 						backgroundColor={sensorsConfig.sensorBackgroundColor}
 						labelColor={sensorsConfig.sensorLabelColor}
+						labelTextSize={sensorsConfig.labelTextSize}
+						labelTextColor={sensorsConfig.labelTextColor}
+						thresholdTextSize={sensorsConfig.thresholdTextSize}
+						thresholdTextColor={sensorsConfig.thresholdTextColor}
+						valueTextSize={sensorsConfig.valueTextSize}
+						valueTextColor={sensorsConfig.valueTextColor}
 						theme="dark"
 					/>
 				</div>
@@ -741,6 +835,7 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 						showBpmText={heartrateConfig.showBpmText}
 						showHeartVisual={heartrateConfig.showHeartVisual}
 						showBorder={heartrateConfig.showBorder}
+						containerBackgroundColor={heartrateConfig.containerBackgroundColor}
 						heartColor={heartrateConfig.heartColor}
 						heartBackgroundColor={heartrateConfig.heartBackgroundColor}
 						textColor={heartrateConfig.textColor}
@@ -1105,228 +1200,284 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 									</div>
 								</div>
 
-								{/* Colors */}
-								<div className="space-y-4 min-w-[280px] max-w-[350px]">
-									<Label className="text-lg font-semibold">Colors</Label>
+								<div className="space-y-6 min-w-[280px] max-w-[350px]">
 									<div className="space-y-4">
+										<Label className="text-lg font-semibold">Display Options</Label>
 										<div className="space-y-3">
-											<Label className="text-sm">Sensor Colors</Label>
-											<div className="flex gap-2 flex-wrap">
-												{(config as SensorsConfig).sensorColors.map((color, index) => (
-													<Popover key={`sensors-${SENSOR_COLOR_KEYS[index]}`}>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="showThresholdText"
+													checked={(config as SensorsConfig).showThresholdText}
+													onCheckedChange={(checked) =>
+														updateSensorsConfig({
+															showThresholdText: Boolean(checked),
+														})
+													}
+												/>
+												<Label htmlFor="showThresholdText" className="cursor-pointer">
+													Show Threshold Text
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="showValueText"
+													checked={(config as SensorsConfig).showValueText}
+													onCheckedChange={(checked) =>
+														updateSensorsConfig({
+															showValueText: Boolean(checked),
+														})
+													}
+												/>
+												<Label htmlFor="showValueText" className="cursor-pointer">
+													Show Value Text
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="useThresholdColor"
+													checked={(config as SensorsConfig).useThresholdColor}
+													onCheckedChange={(checked) =>
+														updateSensorsConfig({
+															useThresholdColor: Boolean(checked),
+														})
+													}
+												/>
+												<Label htmlFor="useThresholdColor" className="cursor-pointer">
+													Use Threshold Color
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="showLabels"
+													checked={!((config as SensorsConfig).hideLabels ?? false)}
+													onCheckedChange={(checked) => updateSensorsConfig({ hideLabels: !checked })}
+												/>
+												<Label htmlFor="showLabels" className="cursor-pointer">
+													Show Labels
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="useSingleColor"
+													checked={(config as SensorsConfig).useSingleColor}
+													onCheckedChange={(checked) =>
+														updateSensorsConfig({
+															useSingleColor: Boolean(checked),
+														})
+													}
+												/>
+												<Label htmlFor="useSingleColor" className="cursor-pointer">
+													Use Single Color
+												</Label>
+											</div>
+										</div>
+									</div>
+
+									<div className="space-y-4">
+										<Label className="text-lg font-semibold">Colors</Label>
+										<div className="space-y-4">
+											<div className="space-y-3">
+												<Label className="text-sm">Sensor Colors</Label>
+												<div className="flex gap-2 flex-wrap">
+													{(config as SensorsConfig).sensorColors.map((color, index) => (
+														<Popover key={`sensors-${SENSOR_COLOR_KEYS[index]}`}>
+															<PopoverTrigger asChild>
+																<button
+																	type="button"
+																	className="w-8 h-8 rounded border cursor-pointer relative overflow-hidden"
+																	style={{
+																		backgroundColor: color,
+																		backgroundImage:
+																			parseRgbaString(color).a < 1
+																				? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
+																				: "none",
+																		backgroundSize: parseRgbaString(color).a < 1 ? "8px 8px" : "auto",
+																		backgroundPosition:
+																			parseRgbaString(color).a < 1 ? "0 0, 0 4px, 4px -4px, -4px 0px" : "auto",
+																	}}
+																/>
+															</PopoverTrigger>
+															<PopoverContent className="w-auto p-3">
+																<RgbaColorPicker
+																	color={parseRgbaString(color)}
+																	onChange={(newColor) => {
+																		const newColors = [...(config as SensorsConfig).sensorColors];
+																		newColors[index] = rgbaToString(newColor);
+																		updateSensorsConfig({
+																			sensorColors: newColors,
+																		});
+																	}}
+																/>
+															</PopoverContent>
+														</Popover>
+													))}
+												</div>
+											</div>
+											<div className="grid grid-cols-2 gap-3">
+												<div className="space-y-2">
+													<Label className="text-sm">Sensor Background</Label>
+													<Popover>
 														<PopoverTrigger asChild>
 															<button
 																type="button"
 																className="w-8 h-8 rounded border cursor-pointer relative overflow-hidden"
 																style={{
-																	backgroundColor: color,
+																	backgroundColor: (config as SensorsConfig).sensorBackgroundColor,
 																	backgroundImage:
-																		parseRgbaString(color).a < 1
+																		parseRgbaString((config as SensorsConfig).sensorBackgroundColor).a < 1
 																			? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
 																			: "none",
-																	backgroundSize: parseRgbaString(color).a < 1 ? "8px 8px" : "auto",
+																	backgroundSize:
+																		parseRgbaString((config as SensorsConfig).sensorBackgroundColor).a < 1
+																			? "8px 8px"
+																			: "auto",
 																	backgroundPosition:
-																		parseRgbaString(color).a < 1 ? "0 0, 0 4px, 4px -4px, -4px 0px" : "auto",
+																		parseRgbaString((config as SensorsConfig).sensorBackgroundColor).a < 1
+																			? "0 0, 0 4px, 4px -4px, -4px 0px"
+																			: "auto",
 																}}
 															/>
 														</PopoverTrigger>
 														<PopoverContent className="w-auto p-3">
 															<RgbaColorPicker
-																color={parseRgbaString(color)}
-																onChange={(newColor) => {
-																	const newColors = [...(config as SensorsConfig).sensorColors];
-																	newColors[index] = rgbaToString(newColor);
+																color={parseRgbaString((config as SensorsConfig).sensorBackgroundColor)}
+																onChange={(color) =>
 																	updateSensorsConfig({
-																		sensorColors: newColors,
-																	});
-																}}
+																		sensorBackgroundColor: rgbaToString(color),
+																	})
+																}
 															/>
 														</PopoverContent>
 													</Popover>
-												))}
+												</div>
+												<div className="space-y-2">
+													<Label className="text-sm">Threshold</Label>
+													<Popover>
+														<PopoverTrigger asChild>
+															<button
+																type="button"
+																className="w-8 h-8 rounded border cursor-pointer relative overflow-hidden"
+																style={{
+																	backgroundColor: (config as SensorsConfig).thresholdColor,
+																	backgroundImage:
+																		parseRgbaString((config as SensorsConfig).thresholdColor).a < 1
+																			? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
+																			: "none",
+																	backgroundSize:
+																		parseRgbaString((config as SensorsConfig).thresholdColor).a < 1 ? "8px 8px" : "auto",
+																	backgroundPosition:
+																		parseRgbaString((config as SensorsConfig).thresholdColor).a < 1
+																			? "0 0, 0 4px, 4px -4px, -4px 0px"
+																			: "auto",
+																}}
+															/>
+														</PopoverTrigger>
+														<PopoverContent className="w-auto p-3">
+															<RgbaColorPicker
+																color={parseRgbaString((config as SensorsConfig).thresholdColor)}
+																onChange={(color) =>
+																	updateSensorsConfig({
+																		thresholdColor: rgbaToString(color),
+																	})
+																}
+															/>
+														</PopoverContent>
+													</Popover>
+												</div>
 											</div>
-										</div>
-										<div className="grid grid-cols-2 gap-3">
-											<div className="space-y-2">
-												<Label className="text-sm">Sensor Background</Label>
-												<Popover>
-													<PopoverTrigger asChild>
-														<button
-															type="button"
-															className="w-8 h-8 rounded border cursor-pointer relative overflow-hidden"
-															style={{
-																backgroundColor: (config as SensorsConfig).sensorBackgroundColor,
-																backgroundImage:
-																	parseRgbaString((config as SensorsConfig).sensorBackgroundColor).a < 1
-																		? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
-																		: "none",
-																backgroundSize:
-																	parseRgbaString((config as SensorsConfig).sensorBackgroundColor).a < 1
-																		? "8px 8px"
-																		: "auto",
-																backgroundPosition:
-																	parseRgbaString((config as SensorsConfig).sensorBackgroundColor).a < 1
-																		? "0 0, 0 4px, 4px -4px, -4px 0px"
-																		: "auto",
-															}}
-														/>
-													</PopoverTrigger>
-													<PopoverContent className="w-auto p-3">
-														<RgbaColorPicker
-															color={parseRgbaString((config as SensorsConfig).sensorBackgroundColor)}
-															onChange={(color) =>
-																updateSensorsConfig({
-																	sensorBackgroundColor: rgbaToString(color),
-																})
-															}
-														/>
-													</PopoverContent>
-												</Popover>
-											</div>
-											<div className="space-y-2">
-												<Label className="text-sm">Threshold</Label>
-												<Popover>
-													<PopoverTrigger asChild>
-														<button
-															type="button"
-															className="w-8 h-8 rounded border cursor-pointer relative overflow-hidden"
-															style={{
-																backgroundColor: (config as SensorsConfig).thresholdColor,
-																backgroundImage:
-																	parseRgbaString((config as SensorsConfig).thresholdColor).a < 1
-																		? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
-																		: "none",
-																backgroundSize:
-																	parseRgbaString((config as SensorsConfig).thresholdColor).a < 1 ? "8px 8px" : "auto",
-																backgroundPosition:
-																	parseRgbaString((config as SensorsConfig).thresholdColor).a < 1
-																		? "0 0, 0 4px, 4px -4px, -4px 0px"
-																		: "auto",
-															}}
-														/>
-													</PopoverTrigger>
-													<PopoverContent className="w-auto p-3">
-														<RgbaColorPicker
-															color={parseRgbaString((config as SensorsConfig).thresholdColor)}
-															onChange={(color) =>
-																updateSensorsConfig({
-																	thresholdColor: rgbaToString(color),
-																})
-															}
-														/>
-													</PopoverContent>
-												</Popover>
-											</div>
-										</div>
 
-										{(config as SensorsConfig).useSingleColor && (
-											<div className="space-y-2">
-												<Label className="text-sm">Single Bar Color</Label>
-												<Popover>
-													<PopoverTrigger asChild>
-														<button
-															type="button"
-															className="w-8 h-8 rounded border cursor-pointer relative overflow-hidden"
-															style={{
-																backgroundColor: (config as SensorsConfig).singleBarColor,
-																backgroundImage:
-																	parseRgbaString((config as SensorsConfig).singleBarColor).a < 1
-																		? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
-																		: "none",
-																backgroundSize:
-																	parseRgbaString((config as SensorsConfig).singleBarColor).a < 1 ? "8px 8px" : "auto",
-																backgroundPosition:
-																	parseRgbaString((config as SensorsConfig).singleBarColor).a < 1
-																		? "0 0, 0 4px, 4px -4px, -4px 0px"
-																		: "auto",
-															}}
-														/>
-													</PopoverTrigger>
-													<PopoverContent className="w-auto p-3">
-														<RgbaColorPicker
-															color={parseRgbaString((config as SensorsConfig).singleBarColor)}
-															onChange={(color) =>
-																updateSensorsConfig({
-																	singleBarColor: rgbaToString(color),
-																})
-															}
-														/>
-													</PopoverContent>
-												</Popover>
-											</div>
-										)}
+											{(config as SensorsConfig).useSingleColor && (
+												<div className="space-y-2">
+													<Label className="text-sm">Single Bar Color</Label>
+													<Popover>
+														<PopoverTrigger asChild>
+															<button
+																type="button"
+																className="w-8 h-8 rounded border cursor-pointer relative overflow-hidden"
+																style={{
+																	backgroundColor: (config as SensorsConfig).singleBarColor,
+																	backgroundImage:
+																		parseRgbaString((config as SensorsConfig).singleBarColor).a < 1
+																			? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
+																			: "none",
+																	backgroundSize:
+																		parseRgbaString((config as SensorsConfig).singleBarColor).a < 1 ? "8px 8px" : "auto",
+																	backgroundPosition:
+																		parseRgbaString((config as SensorsConfig).singleBarColor).a < 1
+																			? "0 0, 0 4px, 4px -4px, -4px 0px"
+																			: "auto",
+																}}
+															/>
+														</PopoverTrigger>
+														<PopoverContent className="w-auto p-3">
+															<RgbaColorPicker
+																color={parseRgbaString((config as SensorsConfig).singleBarColor)}
+																onChange={(color) =>
+																	updateSensorsConfig({
+																		singleBarColor: rgbaToString(color),
+																	})
+																}
+															/>
+														</PopoverContent>
+													</Popover>
+												</div>
+											)}
+										</div>
 									</div>
 								</div>
 
 								<div className="space-y-4 min-w-[280px] max-w-[350px]">
-									<Label className="text-lg font-semibold">Display Options</Label>
+									<Label className="text-lg font-semibold">Text</Label>
 									<div className="space-y-3">
-										<div className="flex items-center space-x-2">
-											<Checkbox
-												id="showThresholdText"
-												checked={(config as SensorsConfig).showThresholdText}
-												onCheckedChange={(checked) =>
-													updateSensorsConfig({
-														showThresholdText: Boolean(checked),
-													})
-												}
-											/>
-											<Label htmlFor="showThresholdText" className="cursor-pointer">
-												Show Threshold Text
-											</Label>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Checkbox
-												id="showValueText"
-												checked={(config as SensorsConfig).showValueText}
-												onCheckedChange={(checked) =>
-													updateSensorsConfig({
-														showValueText: Boolean(checked),
-													})
-												}
-											/>
-											<Label htmlFor="showValueText" className="cursor-pointer">
-												Show Value Text
-											</Label>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Checkbox
-												id="useThresholdColor"
-												checked={(config as SensorsConfig).useThresholdColor}
-												onCheckedChange={(checked) =>
-													updateSensorsConfig({
-														useThresholdColor: Boolean(checked),
-													})
-												}
-											/>
-											<Label htmlFor="useThresholdColor" className="cursor-pointer">
-												Use Threshold Color
-											</Label>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Checkbox
-												id="showLabels"
-												checked={!((config as SensorsConfig).hideLabels ?? false)}
-												onCheckedChange={(checked) => updateSensorsConfig({ hideLabels: !checked })}
-											/>
-											<Label htmlFor="showLabels" className="cursor-pointer">
-												Show Labels
-											</Label>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Checkbox
-												id="useSingleColor"
-												checked={(config as SensorsConfig).useSingleColor}
-												onCheckedChange={(checked) =>
-													updateSensorsConfig({
-														useSingleColor: Boolean(checked),
-													})
-												}
-											/>
-											<Label htmlFor="useSingleColor" className="cursor-pointer">
-												Use Single Color
-											</Label>
-										</div>
+										<TextStyleField
+											id="sensor-label-text"
+											label="Label"
+											size={(config as SensorsConfig).labelTextSize}
+											color={(config as SensorsConfig).labelTextColor}
+											onSizeChange={(size) =>
+												updateSensorsConfig({
+													labelTextSize: clampTextSize(size, DEFAULT_CONFIGS.sensors.labelTextSize),
+												})
+											}
+											onColorChange={(color) =>
+												updateSensorsConfig({
+													labelTextColor: color,
+													sensorLabelColor: color,
+												})
+											}
+										/>
+										<TextStyleField
+											id="sensor-threshold-text"
+											label="Threshold Value"
+											size={(config as SensorsConfig).thresholdTextSize}
+											color={(config as SensorsConfig).thresholdTextColor}
+											onSizeChange={(size) =>
+												updateSensorsConfig({
+													thresholdTextSize: clampTextSize(size, DEFAULT_CONFIGS.sensors.thresholdTextSize),
+												})
+											}
+											onColorChange={(color) =>
+												updateSensorsConfig({
+													thresholdTextColor: color,
+												})
+											}
+										/>
+										<TextStyleField
+											id="sensor-value-text"
+											label="Current Value"
+											size={(config as SensorsConfig).valueTextSize}
+											color={(config as SensorsConfig).valueTextColor}
+											onSizeChange={(size) =>
+												updateSensorsConfig({
+													valueTextSize: clampTextSize(size, DEFAULT_CONFIGS.sensors.valueTextSize),
+												})
+											}
+											onColorChange={(color) =>
+												updateSensorsConfig({
+													valueTextColor: color,
+												})
+											}
+										/>
 									</div>
 								</div>
 							</div>
@@ -1555,6 +1706,12 @@ export function OBSComponentDialog({ open, onOpenChange, password: passwordProp 
 									<div className="space-y-4">
 										{(config as HeartrateConfig).mode === "current" ? (
 											<>
+												<ColorField
+													id="hrContainerBackgroundColor"
+													label="Container Background"
+													color={(config as HeartrateConfig).containerBackgroundColor}
+													onChange={(color) => updateHeartrateConfig({ containerBackgroundColor: color })}
+												/>
 												<ColorField
 													id="hrHeartColor"
 													label="Heart Color"

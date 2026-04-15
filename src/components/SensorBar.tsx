@@ -24,6 +24,12 @@ interface SensorBarProps {
 	hideControls?: boolean;
 	backgroundColor?: string;
 	labelColor?: string;
+	labelTextSize?: number;
+	labelTextColor?: string;
+	thresholdTextSize?: number;
+	thresholdTextColor?: string;
+	valueTextSize?: number;
+	valueTextColor?: string;
 	theme?: "light" | "dark";
 }
 
@@ -46,10 +52,19 @@ const SensorBar = ({
 	hideControls = false,
 	backgroundColor,
 	labelColor = "inherit",
+	labelTextSize = 12,
+	labelTextColor,
+	thresholdTextSize = 11,
+	thresholdTextColor,
+	valueTextSize = 12,
+	valueTextColor,
 	theme,
 }: SensorBarProps) => {
 	const isDarkMode = theme === "dark";
 	const defaultBgColor = backgroundColor || (isDarkMode ? "#171717" : "white");
+	const resolvedLabelColor = labelTextColor ?? labelColor;
+	const resolvedThresholdTextColor = thresholdTextColor ?? (isDarkMode ? "white" : "black");
+	const resolvedValueTextColor = valueTextColor ?? (isDarkMode ? "white" : "black");
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const isDragging = useRef<boolean>(false);
@@ -164,7 +179,6 @@ const SensorBar = ({
 
 	// Draw the canvas when dimensions, value, or threshold changes
 	useEffect(() => {
-		if (!value) return;
 		const canvas = canvasRef.current;
 		if (!canvas || dimensions.width === 0 || dimensions.height === 0) return;
 
@@ -185,7 +199,7 @@ const SensorBar = ({
 		canvas.style.width = `${width}px`;
 		canvas.style.height = `${height}px`;
 
-		ctx.scale(dpr, dpr);
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 		ctx.imageSmoothingEnabled = false;
 
@@ -240,8 +254,8 @@ const SensorBar = ({
 
 		// Draw value text
 		if (showValueText) {
-			ctx.fillStyle = isDarkMode ? "white" : "black";
-			ctx.font = `${12 * (1 / dpr)}px sans-serif`;
+			ctx.fillStyle = resolvedValueTextColor;
+			ctx.font = `${valueTextSize}px sans-serif`;
 			ctx.textAlign = "center";
 			ctx.textBaseline = "top";
 
@@ -254,8 +268,8 @@ const SensorBar = ({
 
 		// Draw threshold value text
 		if (showThresholdText) {
-			ctx.fillStyle = isDarkMode ? "white" : "black";
-			ctx.font = `${11 * (1 / dpr)}px sans-serif`;
+			ctx.fillStyle = resolvedThresholdTextColor;
+			ctx.font = `${thresholdTextSize}px sans-serif`;
 			ctx.textAlign = "center";
 			ctx.textBaseline = "bottom";
 
@@ -274,15 +288,22 @@ const SensorBar = ({
 		showThresholdText,
 		showValueText,
 		thresholdColor,
+		thresholdTextSize,
+		resolvedThresholdTextColor,
 		useThresholdColor,
 		useGradient,
 		theme,
+		valueTextSize,
+		resolvedValueTextColor,
 	]);
 
 	return (
 		<div className="flex flex-col items-center select-none h-full px-4" ref={containerRef}>
 			{!hideLabel && (
-				<div className="text-xs font-medium mb-1 text-center" style={{ color: labelColor }}>
+				<div
+					className="font-medium mb-1 text-center leading-tight"
+					style={{ color: resolvedLabelColor, fontSize: `${labelTextSize}px` }}
+				>
 					{label}
 				</div>
 			)}

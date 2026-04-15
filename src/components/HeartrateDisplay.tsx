@@ -9,6 +9,7 @@ type HeartrateCurrentDisplayProps = {
 	statusText?: string;
 	showHeartVisual?: boolean;
 	showBorder?: boolean;
+	containerBackgroundColor?: string;
 	heartColor?: string;
 	heartBackgroundColor?: string;
 	textColor?: string;
@@ -42,6 +43,7 @@ const GRAPH_HEIGHT = 320;
 const MIN_RENDER_POINTS = 56;
 const MAX_RENDER_POINTS = 180;
 const DEFAULT_HEARTRATE_BORDER_COLOR = "rgba(255, 255, 255, 0.12)";
+const DEFAULT_CURRENT_DISPLAY_BACKGROUND_COLOR = "rgba(0, 0, 0, 0.35)";
 const DEFAULT_HEART_COLOR = "rgba(239, 68, 68, 1)";
 const DEFAULT_HEART_BACKGROUND_COLOR = "rgba(239, 68, 68, 0.12)";
 const DEFAULT_TEXT_COLOR = "rgba(255, 255, 255, 1)";
@@ -62,6 +64,7 @@ const CURRENT_DISPLAY_BPM_FONT_SIZE = 220;
 const CURRENT_DISPLAY_BPM_LABEL_FONT_SIZE = 24;
 const CURRENT_DISPLAY_STATUS_FONT_SIZE = 22;
 const CURRENT_DISPLAY_STATUS_MAX_WIDTH = 680;
+const CURRENT_DISPLAY_BPM_PLACEHOLDER = "888";
 
 function buildSmoothedSamples(samples: HeartrateSample[], startTime: number, endTime: number): HeartrateSample[] {
 	if (samples.length === 0) return [];
@@ -171,6 +174,7 @@ export function HeartrateCurrentDisplay({
 	statusText,
 	showHeartVisual = true,
 	showBorder = false,
+	containerBackgroundColor = DEFAULT_CURRENT_DISPLAY_BACKGROUND_COLOR,
 	heartColor = DEFAULT_HEART_COLOR,
 	heartBackgroundColor = DEFAULT_HEART_BACKGROUND_COLOR,
 	textColor = DEFAULT_TEXT_COLOR,
@@ -204,8 +208,9 @@ export function HeartrateCurrentDisplay({
 		<div ref={containerRef} className="flex h-full w-full items-center justify-center overflow-hidden">
 			<div
 				ref={contentRef}
-				className="inline-flex flex-col justify-center bg-black/35 shadow-[0_18px_60px_rgba(0,0,0,0.32)] backdrop-blur-md"
+				className="inline-flex flex-col justify-center shadow-[0_18px_60px_rgba(0,0,0,0.32)] backdrop-blur-md"
 				style={{
+					backgroundColor: containerBackgroundColor,
 					border: showBorder ? `1px solid ${DEFAULT_HEARTRATE_BORDER_COLOR}` : "none",
 					borderRadius: CURRENT_DISPLAY_RADIUS,
 					padding: CURRENT_DISPLAY_PADDING,
@@ -239,11 +244,20 @@ export function HeartrateCurrentDisplay({
 							</div>
 						) : null}
 						<div style={{ color: textColor }}>
-							<div
-								className="font-semibold leading-none tracking-tight tabular-nums"
-								style={{ fontSize: CURRENT_DISPLAY_BPM_FONT_SIZE }}
-							>
-								{heartrate ?? "--"}
+							<div className="grid place-items-center">
+								<span
+									aria-hidden
+									className="invisible row-start-1 col-start-1 font-semibold leading-none tracking-tight tabular-nums"
+									style={{ fontSize: CURRENT_DISPLAY_BPM_FONT_SIZE }}
+								>
+									{CURRENT_DISPLAY_BPM_PLACEHOLDER}
+								</span>
+								<div
+									className="row-start-1 col-start-1 text-center font-semibold leading-none tracking-tight tabular-nums"
+									style={{ fontSize: CURRENT_DISPLAY_BPM_FONT_SIZE }}
+								>
+									{heartrate ?? "--"}
+								</div>
 							</div>
 							{showBpmText && (
 								<div

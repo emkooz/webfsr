@@ -25,7 +25,18 @@ const DEFAULT_CONFIG = {
 	visibleSensors: "", // Comma-separated list of sensor indices (e.g., "0,2,4" or "all")
 	sensorBackgroundColor: "white",
 	sensorLabelColor: "rgba(255, 255, 255, 0.9)",
+	labelTextSize: 12,
+	labelTextColor: "rgba(255, 255, 255, 0.9)",
+	thresholdTextSize: 11,
+	thresholdTextColor: "rgba(0, 0, 0, 1)",
+	valueTextSize: 12,
+	valueTextColor: "rgba(0, 0, 0, 1)",
 	sensorLabels: [],
+};
+
+const clampTextSize = (value: number, fallback: number) => {
+	if (!Number.isFinite(value)) return fallback;
+	return Math.min(32, Math.max(8, Math.round(value)));
 };
 
 function getQueryPassword() {
@@ -47,17 +58,23 @@ function parseQueryConfig() {
 		thresholdLineOpacity: Number(params.get("thresholdOpacity")) || DEFAULT_CONFIG.thresholdLineOpacity,
 		showThresholdText: params.get("showThreshold") !== "false" ? DEFAULT_CONFIG.showThresholdText : false,
 		showValueText: params.get("showValue") !== "false" ? DEFAULT_CONFIG.showValueText : false,
-		useThresholdColor: params.get("useThresholdColor") === "true" ? true : DEFAULT_CONFIG.useThresholdColor,
+		useThresholdColor: params.get("useThresholdColor") !== "false",
 		useSingleColor: params.get("singleColor") === "true" ? true : DEFAULT_CONFIG.useSingleColor,
 		useGradient: params.get("gradient") === "true" ? true : DEFAULT_CONFIG.useGradient,
 		thresholdColor: params.get("thresholdColor") || DEFAULT_CONFIG.thresholdColor,
 		singleBarColor: params.get("singleBarColor") || DEFAULT_CONFIG.singleBarColor,
 		backgroundColor: params.get("backgroundColor") || DEFAULT_CONFIG.backgroundColor,
 		hideLabels: params.get("hideLabels") === "true" ? true : DEFAULT_CONFIG.hideLabels,
-		hideControls: params.get("hideControls") === "true" ? true : DEFAULT_CONFIG.hideControls,
+		hideControls: params.get("hideControls") !== "false",
 		visibleSensors: params.get("sensors") || DEFAULT_CONFIG.visibleSensors,
 		sensorBackgroundColor: params.get("sensorBg") || DEFAULT_CONFIG.sensorBackgroundColor,
-		sensorLabelColor: params.get("labelColor") || DEFAULT_CONFIG.sensorLabelColor,
+		sensorLabelColor: params.get("labelTextColor") || params.get("labelColor") || DEFAULT_CONFIG.sensorLabelColor,
+		labelTextSize: clampTextSize(Number(params.get("labelTextSize")), DEFAULT_CONFIG.labelTextSize),
+		labelTextColor: params.get("labelTextColor") || params.get("labelColor") || DEFAULT_CONFIG.labelTextColor,
+		thresholdTextSize: clampTextSize(Number(params.get("thresholdTextSize")), DEFAULT_CONFIG.thresholdTextSize),
+		thresholdTextColor: params.get("thresholdTextColor") || DEFAULT_CONFIG.thresholdTextColor,
+		valueTextSize: clampTextSize(Number(params.get("valueTextSize")), DEFAULT_CONFIG.valueTextSize),
+		valueTextColor: params.get("valueTextColor") || DEFAULT_CONFIG.valueTextColor,
 		sensorLabels: (() => {
 			const raw = params.get("sensorLabels");
 			if (!raw) return [...DEFAULT_CONFIG.sensorLabels];
@@ -154,6 +171,12 @@ function SensorsOBSComponent() {
 			hideControls={config.hideControls}
 			backgroundColor={config.sensorBackgroundColor}
 			labelColor={config.sensorLabelColor}
+			labelTextSize={config.labelTextSize}
+			labelTextColor={config.labelTextColor}
+			thresholdTextSize={config.thresholdTextSize}
+			thresholdTextColor={config.thresholdTextColor}
+			valueTextSize={config.valueTextSize}
+			valueTextColor={config.valueTextColor}
 		/>
 	));
 

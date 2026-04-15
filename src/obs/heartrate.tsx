@@ -18,6 +18,7 @@ type HeartrateOBSConfig = {
 	showHeartVisual: boolean;
 	showBorder: boolean;
 	timeWindow: number;
+	containerBackgroundColor: string;
 	heartColor: string;
 	heartBackgroundColor: string;
 	textColor: string;
@@ -42,6 +43,7 @@ const DEFAULT_CONFIG: HeartrateOBSConfig = {
 	showHeartVisual: true,
 	showBorder: false,
 	timeWindow: 30,
+	containerBackgroundColor: "rgba(0, 0, 0, 0.35)",
 	heartColor: "rgba(239, 68, 68, 1)",
 	heartBackgroundColor: "rgba(239, 68, 68, 0.12)",
 	textColor: "rgba(255, 255, 255, 1)",
@@ -78,6 +80,7 @@ function parseQueryConfig(): HeartrateOBSConfig {
 		showHeartVisual: params.get("showHeart") !== "false",
 		showBorder: borderParam == null ? DEFAULT_CONFIG.showBorder : borderParam !== "false",
 		timeWindow: Number(params.get("window")) || DEFAULT_CONFIG.timeWindow,
+		containerBackgroundColor: params.get("containerBgColor") || DEFAULT_CONFIG.containerBackgroundColor,
 		heartColor: params.get("heartColor") || DEFAULT_CONFIG.heartColor,
 		heartBackgroundColor: params.get("heartBgColor") || DEFAULT_CONFIG.heartBackgroundColor,
 		textColor: params.get("textColor") || DEFAULT_CONFIG.textColor,
@@ -196,6 +199,7 @@ function HeartrateOBSComponent() {
 					showBpmText={config.showBpmText}
 					showHeartVisual={config.showHeartVisual}
 					showBorder={config.showBorder}
+					containerBackgroundColor={config.containerBackgroundColor}
 					heartColor={config.heartColor}
 					heartBackgroundColor={config.heartBackgroundColor}
 					textColor={config.textColor}
